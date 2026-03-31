@@ -7,7 +7,10 @@ import com.camilocuenca.inventorysystem.repository.*;
 import com.camilocuenca.inventorysystem.service.serviceInterface.InventoryService;
 import com.camilocuenca.inventorysystem.service.serviceInterface.PurchaseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -197,6 +200,23 @@ public class PurchaseServiceImpl implements PurchaseService {
         return toResponseDto(purchase, details);
     }
 
+    @Override
+    public Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, Pageable pageable) {
+        if (requesterUserId == null) throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Authentication required");
+
+        com.camilocuenca.inventorysystem.model.User user = userRepository.findById(requesterUserId).orElse(null);
+        boolean isAdmin = user != null && user.getRole() != null && user.getRole().name().equals("ADMIN");
+        boolean isManager = user != null && user.getRole() != null && user.getRole().name().equals("MANAGER");
+        boolean isOperator = user != null && user.getRole() != null && user.getRole().name().equals("OPERATOR");
+
+        if (branchId == null && !(isAdmin || isManager)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Only admin/manager can list all branches");
+        }
+
+        org.springframework.data.domain.Page<com.camilocuenca.inventorysystem.model.Purchase> page = purchaseRepository.findByBranchId(branchId, pageable);
+        return page.map(this::toSummary);
+    }
+
     private PurchaseResponseDto toResponseDto(Purchase purchase, List<PurchaseDetail> details) {
         PurchaseResponseDto dto = new PurchaseResponseDto();
         dto.setId(purchase.getId());
@@ -223,6 +243,22 @@ public class PurchaseServiceImpl implements PurchaseService {
             detailDtos.add(pd);
         }
         dto.setDetails(detailDtos);
+        return dto;
+    }
+
+    private PurchaseSummaryDto toSummary(Purchase purchase) {
+        PurchaseSummaryDto dto = new PurchaseSummaryDto();
+        dto.setId(purchase.getId());
+        dto.setBranchId(purchase.getBranch() != null ? purchase.getBranch().getId() : null);
+        dto.setSupplier(purchase.getSupplier());
+        PurchaseSummaryDto.PurchaseStatusDto st = new PurchaseSummaryDto.PurchaseStatusDto();
+        st.setName(purchase.getStatus() != null ? purchase.getStatus().name() : null);
+        dto.setStatus(st);
+        dto.setSubtotal(purchase.getSubtotal());
+        dto.setTax(purchase.getTax());
+        dto.setDiscountTotal(purchase.getDiscountTotal());
+        dto.setTotal(purchase.getTotal());
+        dto.setCreatedAt(purchase.getCreatedAt());
         return dto;
     }
 }

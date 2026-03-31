@@ -3,15 +3,21 @@ package com.camilocuenca.inventorysystem.controller;
 import com.camilocuenca.inventorysystem.dto.purchase.PurchaseCreateDto;
 import com.camilocuenca.inventorysystem.dto.purchase.PurchaseReceiveDto;
 import com.camilocuenca.inventorysystem.dto.purchase.PurchaseResponseDto;
+import com.camilocuenca.inventorysystem.dto.purchase.PurchaseSummaryDto;
 import com.camilocuenca.inventorysystem.service.serviceInterface.PurchaseService;
 import com.camilocuenca.inventorysystem.util.AuthUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * Controlador REST para operaciones sobre compras.
+ */
 @RestController
 @RequestMapping("/api/purchases")
 public class PurchaseController {
@@ -21,9 +27,7 @@ public class PurchaseController {
 
     @PostMapping
     public ResponseEntity<PurchaseResponseDto> createPurchase(Authentication authentication, @RequestBody PurchaseCreateDto dto) {
-        // extraer userId desde las credenciales del token
         UUID userId = AuthUtil.getUserId(authentication);
-        // validar permisos: admin/manager pueden crear en cualquier sucursal; operator solo en su sucursal
         AuthUtil.requireCreatePurchasePermission(authentication, dto.getBranchId());
 
         PurchaseResponseDto created = purchaseService.createPurchase(userId, dto);
@@ -42,5 +46,30 @@ public class PurchaseController {
         UUID userId = AuthUtil.getUserId(authentication);
         PurchaseResponseDto p = purchaseService.receivePurchase(userId, id, dto);
         return ResponseEntity.ok(p);
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<PurchaseSummaryDto>> listPurchases(Authentication authentication,
+                                                                 @RequestParam(required = false) UUID branchId,
+                                                                 Pageable pageable) {
+        UUID userId = AuthUtil.getUserId(authentication);
+        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    @GetMapping("/branch/{branchId}")
+    public ResponseEntity<Page<PurchaseSummaryDto>> getPurchasesByBranch(Authentication authentication,
+                                                                         @PathVariable UUID branchId,
+                                                                         Pageable pageable) {
+        UUID userId = AuthUtil.getUserId(authentication);
+        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<Page<PurchaseSummaryDto>> getAllPurchases(Authentication authentication, Pageable pageable) {
+        UUID userId = AuthUtil.getUserId(authentication);
+        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, null, pageable);
+        return ResponseEntity.ok(page);
     }
 }
