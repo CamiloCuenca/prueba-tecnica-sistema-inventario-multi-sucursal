@@ -2,7 +2,7 @@ package com.camilocuenca.inventorysystem.controller;
 
 import com.camilocuenca.inventorysystem.dto.jwt.TokenDTO;
 import com.camilocuenca.inventorysystem.dto.user.LoginDTO;
-import com.camilocuenca.inventorysystem.service.serviceimpl.UserService;
+import com.camilocuenca.inventorysystem.service.serviceInterface.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

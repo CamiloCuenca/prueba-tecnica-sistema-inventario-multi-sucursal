@@ -45,6 +45,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String subject = claims.getSubject();
             Object roleObj = claims.get("role");
+            Object userIdObj = claims.get("userId");
+            Object branchIdObj = claims.get("branchId");
             List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
             if (roleObj != null) {
@@ -58,7 +60,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
 
-            Authentication auth = new UsernamePasswordAuthenticationToken(subject, null, authorities);
+            // Use subject as principal (email). Put userId in credentials and branchId in details
+            Object credentials = userIdObj != null ? String.valueOf(userIdObj) : null;
+            Object details = branchIdObj != null ? String.valueOf(branchIdObj) : null;
+            Authentication auth = new UsernamePasswordAuthenticationToken(subject, credentials, authorities);
+            ((UsernamePasswordAuthenticationToken) auth).setDetails(details);
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (JwtException e) {
             // Token inválido o expirado: limpiar contexto y continuar para que

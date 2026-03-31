@@ -1,4 +1,4 @@
-package com.camilocuenca.inventorysystem.service.serviceimpl;
+package com.camilocuenca.inventorysystem.service.serviceInterface;
 
 import com.camilocuenca.inventorysystem.dto.jwt.TokenDTO;
 import com.camilocuenca.inventorysystem.dto.user.LoginDTO;

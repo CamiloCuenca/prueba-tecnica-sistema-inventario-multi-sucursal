@@ -1,4 +1,4 @@
-package com.camilocuenca.inventorysystem.service.serviceInterface;
+package com.camilocuenca.inventorysystem.service.serviceimpl;
 
 import com.camilocuenca.inventorysystem.dto.jwt.TokenDTO;
 import com.camilocuenca.inventorysystem.dto.user.LoginDTO;
@@ -8,8 +8,8 @@ import com.camilocuenca.inventorysystem.Enums.Role;
 import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.BranchRepository;
 import com.camilocuenca.inventorysystem.repository.UserRepository;
-import com.camilocuenca.inventorysystem.service.serviceimpl.UserService;
 import com.camilocuenca.inventorysystem.config.JWTUtils;
+import com.camilocuenca.inventorysystem.service.serviceInterface.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -49,6 +49,10 @@ public class UserServiceImpl implements UserService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole() != null ? user.getRole().name() : null);
         claims.put("userId", user.getId().toString());
+        // Incluir branchId en el token si el usuario tiene una sucursal asignada
+        if (user.getBranch() != null && user.getBranch().getId() != null) {
+            claims.put("branchId", user.getBranch().getId().toString());
+        }
 
         // Generar token
         String token = jwtUtils.generateToken(user.getEmail(), claims);
