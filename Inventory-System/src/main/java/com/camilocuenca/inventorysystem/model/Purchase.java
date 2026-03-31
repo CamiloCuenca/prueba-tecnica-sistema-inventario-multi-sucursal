@@ -1,5 +1,6 @@
 package com.camilocuenca.inventorysystem.model;
 
+import com.camilocuenca.inventorysystem.Enums.PurchaseStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,6 +36,25 @@ public class Purchase {
 
     @Column(name = "total", precision = 12, scale = 2)
     private BigDecimal total;
+
+    @Column(name = "subtotal", precision = 12, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(name = "tax", precision = 12, scale = 2)
+    private BigDecimal tax;
+
+    @Column(name = "discount_total", precision = 12, scale = 2)
+    private BigDecimal discountTotal;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private PurchaseStatus status;
+
+    @Column(name = "payment_terms")
+    private String paymentTerms;
+
+    @Column(name = "expected_delivery_date")
+    private Instant expectedDeliveryDate;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")

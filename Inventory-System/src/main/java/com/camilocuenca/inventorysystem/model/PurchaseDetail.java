@@ -34,5 +34,11 @@ public class PurchaseDetail {
     @Column(name = "price", nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "discount", precision = 12, scale = 2)
+    private BigDecimal discount;
+
+    @Column(name = "received_quantity", precision = 12, scale = 2)
+    private BigDecimal receivedQuantity;
+
 
 }
