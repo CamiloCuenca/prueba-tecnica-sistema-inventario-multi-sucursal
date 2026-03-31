@@ -197,6 +197,57 @@ public class PurchaseServiceImpl implements PurchaseService {
         return toResponseDto(purchase, details);
     }
 
+    @Override
+    public java.util.List<PurchaseResponseDto> getPurchasesByBranch(UUID requesterUserId, UUID branchId) {
+        if (requesterUserId == null) throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Authentication required");
+
+        com.camilocuenca.inventorysystem.model.User user = userRepository.findById(requesterUserId).orElse(null);
+        boolean isAdmin = user != null && user.getRole() != null && user.getRole().name().equals("ADMIN");
+        boolean isManager = user != null && user.getRole() != null && user.getRole().name().equals("MANAGER");
+        boolean isOperator = user != null && user.getRole() != null && user.getRole().name().equals("OPERATOR");
+
+        if (isOperator) {
+            UUID userBranch = user.getBranch() != null ? user.getBranch().getId() : null;
+            if (userBranch == null || !userBranch.equals(branchId)) {
+                throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Operador solo puede listar compras de su sucursal");
+            }
+        } else if (!(isAdmin || isManager)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "No autorizado");
+        }
+
+        java.util.List<Purchase> purchases = purchaseRepository.findAll().stream()
+                .filter(p -> p.getBranch() != null && p.getBranch().getId() != null && p.getBranch().getId().equals(branchId))
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.List<PurchaseResponseDto> result = new java.util.ArrayList<>();
+        for (Purchase p : purchases) {
+            java.util.List<PurchaseDetail> details = purchaseDetailRepository.findAll().stream().filter(d -> d.getPurchase().getId().equals(p.getId())).collect(java.util.stream.Collectors.toList());
+            result.add(toResponseDto(p, details));
+        }
+        return result;
+    }
+
+    @Override
+    public java.util.List<PurchaseResponseDto> getAllPurchases(UUID requesterUserId) {
+        if (requesterUserId == null) throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Authentication required");
+
+        com.camilocuenca.inventorysystem.model.User user = userRepository.findById(requesterUserId).orElse(null);
+        boolean isAdmin = user != null && user.getRole() != null && user.getRole().name().equals("ADMIN");
+        boolean isManager = user != null && user.getRole() != null && user.getRole().name().equals("MANAGER");
+
+        if (!(isAdmin || isManager)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Only admin or manager can list all purchases");
+        }
+
+        java.util.List<Purchase> purchases = purchaseRepository.findAll();
+        java.util.List<PurchaseResponseDto> result = new java.util.ArrayList<>();
+        for (Purchase p : purchases) {
+            java.util.List<PurchaseDetail> details = purchaseDetailRepository.findAll().stream().filter(d -> d.getPurchase().getId().equals(p.getId())).collect(java.util.stream.Collectors.toList());
+            result.add(toResponseDto(p, details));
+        }
+        return result;
+    }
+
     private PurchaseResponseDto toResponseDto(Purchase purchase, List<PurchaseDetail> details) {
         PurchaseResponseDto dto = new PurchaseResponseDto();
         dto.setId(purchase.getId());
