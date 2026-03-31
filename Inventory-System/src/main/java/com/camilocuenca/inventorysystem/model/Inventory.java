@@ -35,6 +35,16 @@ public class Inventory {
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
 
+    // Precio de venta actual en esta sucursal (moneda)
+    @ColumnDefault("0")
+    @Column(name = "sale_price", precision = 12, scale = 2)
+    private BigDecimal salePrice;
+
+    // Costo promedio ponderado del inventario en esta sucursal
+    @ColumnDefault("0")
+    @Column(name = "average_cost", precision = 12, scale = 2)
+    private BigDecimal averageCost;
+
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at")
     private Instant updatedAt;
