@@ -28,12 +28,22 @@ public class InventoryController {
     private final InventoryService inventoryService;
     private final UserRepository userRepository;
 
+    /**
+     * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario
+     * @param inventoryService
+     * @param userRepository
+     */
     @Autowired
     public InventoryController(InventoryService inventoryService, UserRepository userRepository) {
         this.inventoryService = inventoryService;
         this.userRepository = userRepository;
     }
 
+    /**
+     * Método auxiliar para resolver el ID del usuario autenticado a partir del objeto Authentication.
+     * @param authentication
+     * @return
+     */
     private UUID resolveRequesterId(Authentication authentication) {
         if (authentication == null) return null;
 
@@ -53,6 +63,11 @@ public class InventoryController {
         return user.map(User::getId).orElse(null);
     }
 
+    /**
+     * Método auxiliar para resolver el ID de la sucursal del usuario autenticado a partir del objeto Authentication.
+     * @param authentication
+     * @return
+     */
     private UUID resolveRequesterBranchId(Authentication authentication) {
         if (authentication == null) return null;
         Object details = authentication.getDetails();
@@ -68,8 +83,16 @@ public class InventoryController {
         Optional<User> user = userRepository.findByEmail(principal);
         return user.flatMap(u -> u.getBranch() != null ? Optional.of(u.getBranch().getId()) : Optional.empty()).orElse(null);
     }
-    @GetMapping("/my/catalog")
 
+    /**
+     * Endpoint para obtener el catálogo de productos de la sucursal del usuario autenticado. Permite paginación, búsqueda por nombre y opción para mostrar solo productos con stock.
+     * @param authentication
+     * @param pageable
+     * @param q
+     * @param showEmpty
+     * @return
+     */
+    @GetMapping("/my/catalog")
     public ResponseEntity<Page<ProductCatalogItemDto>> getMyCatalog(Authentication authentication,
                                                                      Pageable pageable,
                                                                      @RequestParam(required = false) String q,
@@ -79,6 +102,14 @@ public class InventoryController {
         return ResponseEntity.ok(page);
     }
 
+    /**
+     * Endpoint para obtener el inventario de una sucursal específica. Permite paginación y búsqueda por nombre. Solo usuarios con permisos adecuados pueden acceder a esta información.
+     * @param authentication
+     * @param branchId
+     * @param pageable
+     * @param q
+     * @return
+     */
     @GetMapping("/branches/{branchId}/inventory")
     public ResponseEntity<Page<InventoryViewDto>> getBranchInventory(Authentication authentication,
                                                                       @PathVariable UUID branchId,
@@ -89,6 +120,13 @@ public class InventoryController {
         return ResponseEntity.ok(page);
     }
 
+    /**
+     * Endpoint para obtener el inventario de un producto específico en una sucursal. Solo usuarios con permisos adecuados pueden acceder a esta información.
+     * @param authentication
+     * @param branchId
+     * @param productId
+     * @return
+     */
     @GetMapping("/branches/{branchId}/inventory/{productId}")
     public ResponseEntity<InventoryViewDto> getProductInBranch(Authentication authentication,
                                                                @PathVariable UUID branchId,
@@ -98,6 +136,15 @@ public class InventoryController {
         return dto.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * Endpoint para actualizar el precio de venta de un producto en una sucursal. Solo usuarios con permisos adecuados pueden realizar esta acción. Se valida el cuerpo de la solicitud y se manejan los errores de validación.
+     * @param authentication
+     * @param branchId
+     * @param productId
+     * @param body
+     * @param bindingResult
+     * @return
+     */
     @PutMapping("/branches/{branchId}/inventory/{productId}/sale-price")
     public ResponseEntity<?> updateSalePrice(Authentication authentication,
                                              @PathVariable UUID branchId,

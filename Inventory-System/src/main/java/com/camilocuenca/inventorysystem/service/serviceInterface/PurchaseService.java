@@ -3,8 +3,10 @@ package com.camilocuenca.inventorysystem.service.serviceInterface;
 import com.camilocuenca.inventorysystem.dto.purchase.PurchaseCreateDto;
 import com.camilocuenca.inventorysystem.dto.purchase.PurchaseReceiveDto;
 import com.camilocuenca.inventorysystem.dto.purchase.PurchaseResponseDto;
+import com.camilocuenca.inventorysystem.dto.purchase.PurchaseSummaryDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface PurchaseService {
@@ -34,23 +36,8 @@ public interface PurchaseService {
      */
     PurchaseResponseDto getPurchase(UUID requesterUserId, UUID purchaseId);
 
-
-
-
     /**
-     * Obtiene una lista de todas las compras realizadas en una sucursal específica.
-     * @param requesterUserId
-     * @param branchId
-     * @return
+     * Lista paginada de compras (resumen) por sucursal o global (branchId nullable). Retorna `Page<PurchaseSummaryDto>`.
      */
-     List<PurchaseResponseDto> getPurchasesByBranch(UUID requesterUserId, UUID branchId);
-
-
-    /**
-     * Obtiene una lista de todas las compras realizadas en general, sin filtrar por sucursal.
-     * @param requesterUserId
-     * @return
-     */
-     List<PurchaseResponseDto> getAllPurchases(UUID requesterUserId);
+    Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, Pageable pageable);
 }
-

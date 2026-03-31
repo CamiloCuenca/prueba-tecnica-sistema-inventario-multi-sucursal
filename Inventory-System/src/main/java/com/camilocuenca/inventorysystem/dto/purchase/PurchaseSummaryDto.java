@@ -13,8 +13,16 @@ public class PurchaseSummaryDto {
     private UUID id;
     private UUID branchId;
     private String supplier;
-    private String status;
+    private PurchaseStatusDto status;
+    private BigDecimal subtotal;
+    private BigDecimal tax;
+    private BigDecimal discountTotal;
     private BigDecimal total;
     private Instant createdAt;
-}
 
+    @Getter
+    @Setter
+    public static class PurchaseStatusDto {
+        private String name;
+    }
+}
