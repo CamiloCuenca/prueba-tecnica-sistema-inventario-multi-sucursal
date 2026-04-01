@@ -307,6 +307,14 @@ public class TransferServiceImpl implements TransferService {
         return resp;
     }
 
+
+    /**
+     * Despacho de la transferencia por la sucursal origen. Este método se llama después de la preparación y confirma el envío.
+     * @param transferId
+     * @param body
+     * @param requesterUserId
+     * @return
+     */
     @Override
     @Transactional
     public TransferResponseDto dispatchTransfer(UUID transferId, TransferDispatchDto body, UUID requesterUserId) {
@@ -368,6 +376,13 @@ public class TransferServiceImpl implements TransferService {
         return resp;
     }
 
+    /**
+     * Confirmación de recepción por la sucursal destino. Este método se llama cuando la sucursal destino recibe físicamente los productos y confirma las cantidades recibidas.
+     * @param transferId
+     * @param body
+     * @param requesterUserId
+     * @return
+     */
     @Override
     @Transactional
     public TransferResponseDto receiveTransfer(UUID transferId, TransferReceiveDto body, UUID requesterUserId) {
