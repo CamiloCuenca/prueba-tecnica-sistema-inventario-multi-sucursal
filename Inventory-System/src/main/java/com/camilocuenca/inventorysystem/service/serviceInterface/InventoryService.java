@@ -38,6 +38,14 @@ public interface InventoryService {
      */
     Optional<InventoryViewDto> getProductInventoryInBranch(UUID requesterUserId, UUID branchId, UUID productId);
 
+
+    /* Obtener el inventario de todo el sistemas y todas las sucursales para un producto específico.
+     * @param requesterUserId
+     * @param productId
+     * @return
+     */
+    Page<InventoryViewDto> getProductInventoryInAllBranches(UUID requesterUserId, UUID productId, Pageable pageable);
+
     /**
      * Recalcula y actualiza el costo promedio ponderado del inventario para un producto en una sucursal
      * usando la fórmula: newAvg = (currentQty * currentAvg + purchaseQty * purchasePrice) / (currentQty + purchaseQty)
