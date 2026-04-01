@@ -48,8 +48,18 @@ public class Transfer {
     @Column(name = "shipped_at")
     private Instant shippedAt;
 
+    @Column(name = "dispatched_at")
+    private Instant dispatchedAt;
+
     @Column(name = "received_at")
     private Instant receivedAt;
 
+    // Transportista responsable del envío
+    @Column(name = "carrier", length = 200)
+    private String carrier;
+
+    // Fecha estimada de llegada
+    @Column(name = "estimated_arrival")
+    private Instant estimatedArrival;
 
 }

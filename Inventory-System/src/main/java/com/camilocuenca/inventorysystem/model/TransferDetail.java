@@ -31,6 +31,9 @@ public class TransferDetail {
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
 
+    @Column(name = "quantity_confirmed", precision = 12, scale = 2)
+    private BigDecimal quantityConfirmed;
+
     @Column(name = "received_quantity", precision = 12, scale = 2)
     private BigDecimal receivedQuantity;
 
