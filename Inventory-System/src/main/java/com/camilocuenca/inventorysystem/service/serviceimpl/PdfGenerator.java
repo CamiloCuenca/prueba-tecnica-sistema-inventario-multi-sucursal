@@ -4,10 +4,11 @@ import com.camilocuenca.inventorysystem.model.Sale;
 import com.camilocuenca.inventorysystem.model.SaleDetail;
 import com.camilocuenca.inventorysystem.repository.SaleDetailRepository;
 import com.camilocuenca.inventorysystem.repository.SaleRepository;
-import com.itextpdf.text.*;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfWriter;
+// OpenPDF imports (namespaced bajo com.lowagie para compatibilidad)
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * PdfGenerator
+ * <p>
+ * Genera comprobantes de venta en formato PDF usando OpenPDF.
+ *
+ * Nota: este proyecto ahora usa OpenPDF (dependencia `com.github.librepdf:openpdf`).
+ * OpenPDF ofrece API compatible con iText 2/4 y tiene licencia LGPL/MPL.
+ * Si en el futuro deseas cambiar a Apache PDFBox, la lógica de creación
+ * del documento deberá adaptarse.
+ */
 @Service
 @Transactional
 public class PdfGenerator {
@@ -167,16 +178,13 @@ public class PdfGenerator {
 
     private void addTableHeader(PdfPTable table, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase("Producto", font));
-        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        // No establecer color de fondo para compatibilidad con OpenPDF/classpath
         table.addCell(cell);
         cell = new PdfPCell(new Phrase("Cant.", font));
-        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
         table.addCell(cell);
         cell = new PdfPCell(new Phrase("Precio", font));
-        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
         table.addCell(cell);
         cell = new PdfPCell(new Phrase("Total", font));
-        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
         table.addCell(cell);
     }
 
