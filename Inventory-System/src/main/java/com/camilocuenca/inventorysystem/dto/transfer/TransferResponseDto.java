@@ -12,7 +12,10 @@ public class TransferResponseDto {
     private String status;
     private Instant createdAt;
     private Instant shippedAt;
+    private Instant dispatchedAt;
     private Instant receivedAt;
+    private String carrier;
+    private Instant estimatedArrival;
     private List<TransferDetailResponseDto> items;
 
     public UUID getId() {
@@ -63,12 +66,36 @@ public class TransferResponseDto {
         this.shippedAt = shippedAt;
     }
 
+    public Instant getDispatchedAt() {
+        return dispatchedAt;
+    }
+
+    public void setDispatchedAt(Instant dispatchedAt) {
+        this.dispatchedAt = dispatchedAt;
+    }
+
     public Instant getReceivedAt() {
         return receivedAt;
     }
 
     public void setReceivedAt(Instant receivedAt) {
         this.receivedAt = receivedAt;
+    }
+
+    public String getCarrier() {
+        return carrier;
+    }
+
+    public void setCarrier(String carrier) {
+        this.carrier = carrier;
+    }
+
+    public Instant getEstimatedArrival() {
+        return estimatedArrival;
+    }
+
+    public void setEstimatedArrival(Instant estimatedArrival) {
+        this.estimatedArrival = estimatedArrival;
     }
 
     public List<TransferDetailResponseDto> getItems() {

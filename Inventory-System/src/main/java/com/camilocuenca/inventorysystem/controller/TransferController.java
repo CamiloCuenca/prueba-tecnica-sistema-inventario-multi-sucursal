@@ -48,6 +48,13 @@ public class TransferController {
         return user.map(User::getId).orElse(null);
     }
 
+    /**
+     * Endpoint para solicitar una transferencia. El usuario autenticado es el solicitante.
+     * @param authentication
+     * @param body
+     * @param bindingResult
+     * @return
+     */
     @PostMapping("/transfers")
     public ResponseEntity<?> requestTransfer(Authentication authentication, @Valid @RequestBody TransferRequestDto body, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
@@ -65,6 +72,14 @@ public class TransferController {
         }
     }
 
+    /**
+     * Endpoint para preparar una transferencia. Solo el solicitante o un administrador pueden preparar la transferencia.
+     * @param authentication
+     * @param id
+     * @param body
+     * @param bindingResult
+     * @return
+     */
     @PostMapping("/transfers/{id}/prepare")
     public ResponseEntity<?> prepareTransfer(Authentication authentication, @PathVariable UUID id, @Valid @RequestBody TransferPrepareDto body, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
@@ -84,6 +99,14 @@ public class TransferController {
         }
     }
 
+    /**
+     * Endpoint para despachar una transferencia. Solo el solicitante o un administrador pueden despachar la transferencia.
+     * @param authentication
+     * @param id
+     * @param body
+     * @param bindingResult
+     * @return
+     */
     @PostMapping("/transfers/{id}/dispatch")
     public ResponseEntity<?> dispatchTransfer(Authentication authentication, @PathVariable UUID id, @Valid @RequestBody TransferDispatchDto body, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
@@ -103,6 +126,14 @@ public class TransferController {
         }
     }
 
+    /**
+     * Endpoint para recibir una transferencia. Solo el solicitante o un administrador pueden recibir la transferencia.
+     * @param authentication
+     * @param id
+     * @param body
+     * @param bindingResult
+     * @return
+     */
     @PostMapping("/transfers/{id}/receive")
     public ResponseEntity<?> receiveTransfer(Authentication authentication, @PathVariable UUID id, @Valid @RequestBody TransferReceiveDto body, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {

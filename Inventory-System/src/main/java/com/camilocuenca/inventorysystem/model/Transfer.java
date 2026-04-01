@@ -48,6 +48,9 @@ public class Transfer {
     @Column(name = "shipped_at")
     private Instant shippedAt;
 
+    @Column(name = "dispatched_at")
+    private Instant dispatchedAt;
+
     @Column(name = "received_at")
     private Instant receivedAt;
 

@@ -50,12 +50,20 @@ public interface TransferService {
     TransferResponseDto prepareTransfer(UUID transferId, TransferPrepareDto body, UUID requesterUserId);
 
     /**
-     * Registrar envío: registrar carrier y fecha estimada.
+     * Despacho de la transferencia por la sucursal origen. Este método se llama después de la preparación y confirma el envío.
+     * @param transferId
+     * @param body
+     * @param requesterUserId
+     * @return
      */
     TransferResponseDto dispatchTransfer(UUID transferId, TransferDispatchDto body, UUID requesterUserId);
 
     /**
      * Confirmar recepción (parcial o completa). Actualiza inventario de destino, crea alertas por faltantes.
+     * @param transferId
+     * @param body
+     * @param requesterUserId
+     * @return
      */
     TransferResponseDto receiveTransfer(UUID transferId, TransferReceiveDto body, UUID requesterUserId);
 

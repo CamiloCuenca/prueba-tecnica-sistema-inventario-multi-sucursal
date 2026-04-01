@@ -51,18 +51,23 @@ public class TransferServiceImpl implements TransferService {
         this.transferAlertRepository = transferAlertRepository;
     }
 
+
     /**
-     * Crea la solicitud de transferencia (estado PENDING).
+     *    Crea la solicitud de transferencia (estado PENDING).
      *
-     * Comportamiento híbrido de autorización/origen:
-     * - Si el usuario solicitante es ADMIN: se utiliza el campo originBranchId que venga en el cuerpo (req).
-     * - Si el usuario solicitante NO es ADMIN: se requiere que el usuario pertenezca a la sucursal destino
-     *   ya que, por seguridad, sólo la sucursal destino (o un ADMIN) puede generar la solicitud; en ese caso
-     *   el originBranchId proporcionado en el body será validado pero la autorización principal se basa en
-     *   la pertenencia del usuario a la sucursal destino.
+     *       Comportamiento híbrido de autorización/origen:
+     *       - Si el usuario solicitante es ADMIN: se utiliza el campo originBranchId que venga en el cuerpo (req).
+     *       - Si el usuario solicitante NO es ADMIN: se requiere que el usuario pertenezca a la sucursal destino
+     *         ya que, por seguridad, sólo la sucursal destino (o un ADMIN) puede generar la solicitud; en ese caso
+     *         el originBranchId proporcionado en el body será validado pero la autorización principal se basa en
+     *         la pertenencia del usuario a la sucursal destino.
      *
-     * Esto evita que un operador no autorizado cree solicitudes en nombre de otras sucursales, pero permite
-     * que la sucursal destino solicite stock a cualquier origen disponible.
+     *       Esto evita que un operador no autorizado cree solicitudes en nombre de otras sucursales, pero permite
+     *       que la sucursal destino solicite stock a cualquier origen disponible.
+     *
+     * @param req DTO con la información de la solicitud (originBranchId, destinationBranchId, items)
+     * @param requesterUserId UUID del usuario que realiza la solicitud (resuelto desde el JWT)
+     * @return
      */
     @Override
     @Transactional
@@ -93,7 +98,23 @@ public class TransferServiceImpl implements TransferService {
             destination = requester.getBranch();
         }
 
-        // Validar productos
+        // Validar que origin y destination sean distintas
+        if (origin.getId().equals(destination.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sucursal origen y destino deben ser distintas");
+        }
+
+        // Validar productos y unicidad en el request (no permitir productos duplicados en la misma solicitud)
+        Set<UUID> seenProductIds = new HashSet<>();
+        List<UUID> duplicateIds = new ArrayList<>();
+        for (TransferItemRequestDto it : req.getItems()) {
+            if (!seenProductIds.add(it.getProductId())) {
+                duplicateIds.add(it.getProductId());
+            }
+        }
+        if (!duplicateIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Productos duplicados en la solicitud: " + duplicateIds);
+        }
+
         Map<UUID, Product> products = new HashMap<>();
         for (TransferItemRequestDto it : req.getItems()) {
             Product p = productRepository.findById(it.getProductId())
@@ -125,7 +146,7 @@ public class TransferServiceImpl implements TransferService {
             td.setTransfer(saved);
             td.setProduct(products.get(it.getProductId()));
             td.setQuantity(it.getQuantity());
-            td.setReceivedQuantity(BigDecimal.ZERO);
+            // quantityConfirmed se deja null para distinguir "no preparado" de "confirmado con 0"
             details.add(td);
         }
         // Guardar todos los detalles en lote
@@ -138,12 +159,16 @@ public class TransferServiceImpl implements TransferService {
         resp.setDestinationBranchId(destination.getId());
         resp.setStatus(saved.getStatus());
         resp.setCreatedAt(saved.getCreatedAt());
+        resp.setShippedAt(saved.getShippedAt());
+        resp.setDispatchedAt(saved.getDispatchedAt());
+        resp.setCarrier(saved.getCarrier());
+        resp.setEstimatedArrival(saved.getEstimatedArrival());
         resp.setItems(details.stream().map(d -> {
             TransferDetailResponseDto dr = new TransferDetailResponseDto();
             dr.setProductId(d.getProduct().getId());
             dr.setProductName(d.getProduct().getName());
             dr.setQuantityRequested(d.getQuantity());
-            dr.setQuantityConfirmed(BigDecimal.ZERO);
+            dr.setQuantityConfirmed(d.getQuantityConfirmed());
             dr.setReceivedQuantity(d.getReceivedQuantity());
             return dr;
         }).collect(Collectors.toList()));
@@ -151,8 +176,13 @@ public class TransferServiceImpl implements TransferService {
         return resp;
     }
 
-    /**
-     * Preparación/confirmación por la sucursal origen: validar stock y decrementar; actualizar estado y registrar tx.
+       /**
+     * Preparación / confirmación de la transferencia por la sucursal origen.
+     * La sucursal origen revisa disponibilidad y confirma o ajusta la cantidad que se envi
+     * @param transferId id de la transferencia a preparar
+     * @param body DTO con las cantidades confirmadas por producto
+     * @param requesterUserId UUID del usuario que confirma (resuelto desde JWT)
+     * @return
      */
     @Override
     @Transactional
@@ -163,6 +193,11 @@ public class TransferServiceImpl implements TransferService {
         User requester = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
+        // Validar que se envíe al menos un item en el body
+        if (body.getItems() == null || body.getItems().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Se requiere al menos un item para preparar la transferencia");
+        }
+
         // Verificar que requester pertenece a origin branch o es admin role
         boolean isOriginUser = requester.getBranch() != null && requester.getBranch().getId().equals(transfer.getOriginBranch().getId());
         boolean isAdmin = requester.getRole() != null && (Role.ADMIN.equals(requester.getRole()));
@@ -172,7 +207,9 @@ public class TransferServiceImpl implements TransferService {
 
         // Mapear detalles existentes
         List<TransferDetail> existingDetails = transferDetailRepository.findByTransferId(transferId);
-        Map<UUID, TransferDetail> detailByProduct = existingDetails.stream().collect(Collectors.toMap(d -> d.getProduct().getId(), d -> d));
+        Map<UUID, TransferDetail> detailByProduct = existingDetails.stream().collect(Collectors.toMap(d -> d.getProduct().getId(), d -> d, (a, b) -> {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Detalle de transferencia duplicado para el producto: " + a.getProduct().getId());
+        }));
 
         List<InventoryTransaction> txs = new ArrayList<>();
 
@@ -183,8 +220,13 @@ public class TransferServiceImpl implements TransferService {
             }
 
             BigDecimal toSend = pit.getQuantityConfirmed();
-            if (toSend.compareTo(BigDecimal.ZERO) <= 0) {
+            if (toSend == null || toSend.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "quantityConfirmed debe ser mayor que cero para producto: " + pit.getProductId());
+            }
+
+            // VALIDACIÓN ADICIONAL: no permitir confirmar más de lo solicitado
+            if (td.getQuantity() != null && toSend.compareTo(td.getQuantity()) > 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "quantityConfirmed no puede ser mayor que la cantidad solicitada para el producto: " + pit.getProductId());
             }
 
             // Validar inventario en origin
@@ -221,9 +263,23 @@ public class TransferServiceImpl implements TransferService {
             inventoryTransactionRepository.saveAll(txs);
         }
 
-        // Actualizar estado y shippedAt
-        transfer.setStatus("SHIPPED");
-        transfer.setShippedAt(Instant.now());
+        // Determinar si todos los detalles han sido preparados
+        boolean allPrepared = existingDetails.stream().allMatch(d -> d.getQuantityConfirmed() != null && d.getQuantityConfirmed().compareTo(BigDecimal.ZERO) > 0);
+        boolean anyProcessed = !txs.isEmpty();
+
+        if (!anyProcessed) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se procesó ningún item en la preparación");
+        }
+
+        if (allPrepared) {
+            transfer.setStatus("SHIPPED");
+            // Si quedó completamente preparado, marcar fecha de envío
+            transfer.setShippedAt(Instant.now());
+        } else {
+            transfer.setStatus("PARTIALLY_SHIPPED");
+            // No setear shippedAt para envíos parciales aquí: el envío físico (dispatch) lo marcará
+        }
+
         transfer.setApprovedBy(requester);
         transferRepository.save(transfer);
 
@@ -235,6 +291,9 @@ public class TransferServiceImpl implements TransferService {
         resp.setStatus(transfer.getStatus());
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
+        resp.setDispatchedAt(transfer.getDispatchedAt());
+        resp.setCarrier(transfer.getCarrier());
+        resp.setEstimatedArrival(transfer.getEstimatedArrival());
         List<TransferDetailResponseDto> items = existingDetails.stream().map(d -> {
             TransferDetailResponseDto dr = new TransferDetailResponseDto();
             dr.setProductId(d.getProduct().getId());
@@ -267,7 +326,10 @@ public class TransferServiceImpl implements TransferService {
         transfer.setCarrier(body.getCarrier());
         transfer.setEstimatedArrival(body.getEstimatedArrival());
         transfer.setStatus("IN_TRANSIT");
-        transfer.setShippedAt(Instant.now());
+        // No sobrescribir shippedAt (fecha de preparación). Registrar la fecha real de despacho en dispatchedAt si no existe.
+        if (transfer.getDispatchedAt() == null) {
+            transfer.setDispatchedAt(Instant.now());
+        }
         transferRepository.save(transfer);
 
         TransferResponseDto resp = new TransferResponseDto();
@@ -277,6 +339,9 @@ public class TransferServiceImpl implements TransferService {
         resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setCreatedAt(transfer.getCreatedAt());
+        resp.setDispatchedAt(transfer.getDispatchedAt());
+        resp.setCarrier(transfer.getCarrier());
+        resp.setEstimatedArrival(transfer.getEstimatedArrival());
         return resp;
     }
 
@@ -296,27 +361,86 @@ public class TransferServiceImpl implements TransferService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no autorizado para confirmar la recepción");
         }
 
-        // Mapear detalles por product
+        // Mapear detalles por producto (controlando duplicados en DB)
         List<TransferDetail> details = transferDetailRepository.findByTransferId(transferId);
-        Map<UUID, TransferDetail> detailByProduct = details.stream().collect(Collectors.toMap(d -> d.getProduct().getId(), d -> d));
+        Map<UUID, TransferDetail> detailByProduct = details.stream().collect(Collectors.toMap(d -> d.getProduct().getId(), d -> d, (a, b) -> {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Detalle de transferencia duplicado para el producto: " + a.getProduct().getId());
+        }));
+
+        if (body.getItems() == null || body.getItems().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Se requiere al menos un item para confirmar la recepción");
+        }
 
         List<InventoryTransaction> transactions = new ArrayList<>();
         List<TransferAlert> alerts = new ArrayList<>();
 
-        boolean anyMissing = false;
-
+        // Procesar sólo los items enviados, pero siempre calcularemos el estado global considerando todos los detalles
         for (TransferReceiveDto.TransferReceiveItemDto it : body.getItems()) {
             TransferDetail td = detailByProduct.get(it.getProductId());
-            if (td == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Producto no pertenece a la transferencia: " + it.getProductId());
+            if (td == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Producto no pertenece a la transferencia: " + it.getProductId());
+            }
 
             java.math.BigDecimal received = it.getReceivedQuantity();
-            java.math.BigDecimal confirmed = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
+            if (received == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "receivedQuantity es requerido para el producto: " + it.getProductId());
+            }
+            // Validación: received > 0
+            if (received.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "receivedQuantity debe ser mayor que cero para el producto: " + it.getProductId());
+            }
 
-            // Si recibido < confirmado -> hay faltantes
+            java.math.BigDecimal confirmed = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
+            if (confirmed == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cantidad confirmada/solicitada no está definida para el producto: " + it.getProductId());
+            }
+            // Validación: no permitir received > confirmed
+            if (received.compareTo(confirmed) > 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "receivedQuantity no puede ser mayor que la cantidad confirmada/solicitada para el producto: " + it.getProductId());
+            }
+
+            // Evitar disminuir la cantidad ya registrada: solo permitir received >= existingReceived
+            java.math.BigDecimal existingReceived = td.getReceivedQuantity() != null ? td.getReceivedQuantity() : java.math.BigDecimal.ZERO;
+            if (received.compareTo(existingReceived) < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "receivedQuantity no puede ser menor que la cantidad ya registrada para el producto: " + it.getProductId());
+            }
+
+            // Calcular incremento efectivo (delta) para evitar duplicar incrementos en múltiples llamadas
+            java.math.BigDecimal delta = received.subtract(existingReceived);
+            if (delta.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                // Incrementar inventario en destination (atómico) sólo con el delta
+                int updated = inventoryRepository.incrementQuantity(transfer.getDestinationBranch().getId(), it.getProductId(), delta);
+                if (updated == 0) {
+                    // No existe inventario para este producto en destino: crear uno con la cantidad delta
+                    Inventory inv = new Inventory();
+                    inv.setBranch(transfer.getDestinationBranch());
+                    Product p = productRepository.findById(it.getProductId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Producto no encontrado: " + it.getProductId()));
+                    inv.setProduct(p);
+                    inv.setQuantity(delta);
+                    inv.setUpdatedAt(Instant.now());
+                    inventoryRepository.save(inv);
+                }
+
+                // Registrar transaction IN en destino correspondiente al delta
+                InventoryTransaction tx = new InventoryTransaction();
+                tx.setProduct(td.getProduct());
+                tx.setBranch(transfer.getDestinationBranch());
+                tx.setUser(requester);
+                tx.setType("IN");
+                tx.setQuantity(delta);
+                tx.setReason("TRANSFER_IN");
+                tx.setReferenceType("TRANSFER");
+                tx.setReferenceId(transfer.getId());
+                transactions.add(tx);
+            }
+
+            // Actualizar receivedQuantity en detalle al valor total recibido
+            td.setReceivedQuantity(received);
+            transferDetailRepository.save(td);
+
+            // Si received < confirmed, generar alerta (se registra la diferencia actual)
             if (received.compareTo(confirmed) < 0) {
                 java.math.BigDecimal missing = confirmed.subtract(received);
-                anyMissing = true;
-
                 TransferAlert alert = new TransferAlert();
                 alert.setTransfer(transfer);
                 alert.setProductId(it.getProductId());
@@ -325,50 +449,44 @@ public class TransferServiceImpl implements TransferService {
                 alert.setStatus("OPEN");
                 alerts.add(alert);
             }
-
-            // Incrementar inventario en destination (atómico)
-            int updated = inventoryRepository.incrementQuantity(transfer.getDestinationBranch().getId(), it.getProductId(), received);
-            if (updated == 0) {
-                // No existe inventario para este producto en destino: crear uno
-                Inventory inv = new Inventory();
-                inv.setBranch(transfer.getDestinationBranch());
-                Product p = productRepository.findById(it.getProductId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Producto no encontrado: " + it.getProductId()));
-                inv.setProduct(p);
-                inv.setQuantity(received);
-                inv.setUpdatedAt(Instant.now());
-                // save
-                inventoryRepository.save(inv);
-            }
-
-            // Registrar transaction IN en destino
-            InventoryTransaction tx = new InventoryTransaction();
-            tx.setProduct(td.getProduct());
-            tx.setBranch(transfer.getDestinationBranch());
-            tx.setUser(requester);
-            tx.setType("IN");
-            tx.setQuantity(received);
-            tx.setReason("TRANSFER_IN");
-            tx.setReferenceType("TRANSFER");
-            tx.setReferenceId(transfer.getId());
-            transactions.add(tx);
-
-            // Actualizar receivedQuantity en detalle
-            td.setReceivedQuantity(received);
-            transferDetailRepository.save(td);
         }
 
-        // Guardar alertas y transacciones
-        if (!alerts.isEmpty()) {
-            transferAlertRepository.saveAll(alerts);
-        }
+        // Persistir transacciones y alertas generadas en esta llamada
         if (!transactions.isEmpty()) {
             inventoryTransactionRepository.saveAll(transactions);
         }
+        if (!alerts.isEmpty()) {
+            transferAlertRepository.saveAll(alerts);
+        }
 
-        // Actualizar estado
-        transfer.setReceivedAt(Instant.now());
-        transfer.setStatus(anyMissing ? "PARTIALLY_RECEIVED" : "RECEIVED");
-        transferRepository.save(transfer);
+        // Determinar estado global considerando todas las líneas del transfer
+        boolean anyReceived = false;
+        boolean anyMissingOverall = false;
+        boolean allFullyReceived = true;
+        for (TransferDetail td : details) {
+            java.math.BigDecimal conf = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
+            java.math.BigDecimal rec = td.getReceivedQuantity() != null ? td.getReceivedQuantity() : java.math.BigDecimal.ZERO;
+
+            if (rec.compareTo(java.math.BigDecimal.ZERO) > 0) anyReceived = true;
+            if (conf == null) conf = java.math.BigDecimal.ZERO;
+            if (rec.compareTo(conf) < 0) {
+                anyMissingOverall = true;
+                allFullyReceived = false;
+            }
+        }
+
+        if (anyReceived) {
+            if (allFullyReceived) {
+                transfer.setStatus("RECEIVED");
+            } else if (anyMissingOverall) {
+                transfer.setStatus("PARTIALLY_RECEIVED");
+            } else {
+                // Si hay recepciones pero ninguna falta detectada, marcar parcialmente recibido
+                transfer.setStatus("PARTIALLY_RECEIVED");
+            }
+            transfer.setReceivedAt(Instant.now());
+            transferRepository.save(transfer);
+        }
 
         // Construir respuesta
         TransferResponseDto resp = new TransferResponseDto();
@@ -378,6 +496,8 @@ public class TransferServiceImpl implements TransferService {
         resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
         resp.setReceivedAt(transfer.getReceivedAt());
         resp.setCreatedAt(transfer.getCreatedAt());
+        resp.setCarrier(transfer.getCarrier());
+        resp.setEstimatedArrival(transfer.getEstimatedArrival());
         return resp;
     }
 }
