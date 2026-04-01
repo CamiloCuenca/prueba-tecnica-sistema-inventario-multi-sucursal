@@ -29,9 +29,8 @@ public class InventoryController {
     private final UserRepository userRepository;
 
     /**
-     * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario
-     * @param inventoryService
-     * @param userRepository
+     * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario* @param inventoryService servicio de inventario
+     * @param userRepository repositorio de usuarios
      */
     @Autowired
     public InventoryController(InventoryService inventoryService, UserRepository userRepository) {
@@ -41,8 +40,8 @@ public class InventoryController {
 
     /**
      * Método auxiliar para resolver el ID del usuario autenticado a partir del objeto Authentication.
-     * @param authentication
-     * @return
+     * @param authentication objeto de autenticación
+     * @return UUID del usuario autenticado o null
      */
     private UUID resolveRequesterId(Authentication authentication) {
         if (authentication == null) return null;
@@ -65,8 +64,8 @@ public class InventoryController {
 
     /**
      * Método auxiliar para resolver el ID de la sucursal del usuario autenticado a partir del objeto Authentication.
-     * @param authentication
-     * @return
+     * @param authentication objeto de autenticación
+     * @return UUID de la sucursal del usuario autenticado o null
      */
     private UUID resolveRequesterBranchId(Authentication authentication) {
         if (authentication == null) return null;
@@ -86,11 +85,11 @@ public class InventoryController {
 
     /**
      * Endpoint para obtener el catálogo de productos de la sucursal del usuario autenticado. Permite paginación, búsqueda por nombre y opción para mostrar solo productos con stock.
-     * @param authentication
-     * @param pageable
-     * @param q
-     * @param showEmpty
-     * @return
+     * @param authentication objeto de autenticación
+     * @param pageable paginación
+     * @param q consulta opcional por nombre o sku
+     * @param showEmpty si true muestra también productos sin stock
+     * @return página con items del catálogo
      */
     @GetMapping("/my/catalog")
     public ResponseEntity<Page<ProductCatalogItemDto>> getMyCatalog(Authentication authentication,
@@ -104,11 +103,11 @@ public class InventoryController {
 
     /**
      * Endpoint para obtener el inventario de una sucursal específica. Permite paginación y búsqueda por nombre. Solo usuarios con permisos adecuados pueden acceder a esta información.
-     * @param authentication
-     * @param branchId
-     * @param pageable
-     * @param q
-     * @return
+     * @param authentication objeto de autenticación
+     * @param branchId id de la sucursal
+     * @param pageable paginación
+     * @param q filtro opcional por nombre/sku
+     * @return página con inventario de la sucursal
      */
     @GetMapping("/branches/{branchId}/inventory")
     public ResponseEntity<Page<InventoryViewDto>> getBranchInventory(Authentication authentication,
@@ -122,10 +121,10 @@ public class InventoryController {
 
     /**
      * Endpoint para obtener el inventario de un producto específico en una sucursal. Solo usuarios con permisos adecuados pueden acceder a esta información.
-     * @param authentication
-     * @param branchId
-     * @param productId
-     * @return
+     * @param authentication objeto de autenticación
+     * @param branchId id de la sucursal
+     * @param productId id del producto
+     * @return detalle de inventario o 404 si no existe
      */
     @GetMapping("/branches/{branchId}/inventory/{productId}")
     public ResponseEntity<InventoryViewDto> getProductInBranch(Authentication authentication,
@@ -137,13 +136,33 @@ public class InventoryController {
     }
 
     /**
+     * Nuevo endpoint para obtener el inventario de un producto en todas las sucursales (paginado).
+     * Permite a cualquier usuario autenticado ver la disponibilidad por sucursal.
+     * @param authentication objeto de autenticación
+     * @param productId id del producto
+     * @param pageable paginación
+     * @return página con inventario por sucursal
+     */
+    @GetMapping("/products/{productId}/inventory")
+    public ResponseEntity<Page<InventoryViewDto>> getProductInAllBranches(Authentication authentication,
+                                                                          @PathVariable UUID productId,
+                                                                          Pageable pageable) {
+        UUID requesterId = resolveRequesterId(authentication);
+        if (requesterId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Page.empty());
+        }
+        Page<InventoryViewDto> page = inventoryService.getProductInventoryInAllBranches(requesterId, productId, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
      * Endpoint para actualizar el precio de venta de un producto en una sucursal. Solo usuarios con permisos adecuados pueden realizar esta acción. Se valida el cuerpo de la solicitud y se manejan los errores de validación.
-     * @param authentication
-     * @param branchId
-     * @param productId
-     * @param body
-     * @param bindingResult
-     * @return
+     * @param authentication objeto de autenticación
+     * @param branchId id de la sucursal
+     * @param productId id del producto
+     * @param body dto con nuevo precio
+     * @param bindingResult resultado de validación
+     * @return 204 en caso de éxito
      */
     @PutMapping("/branches/{branchId}/inventory/{productId}/sale-price")
     public ResponseEntity<?> updateSalePrice(Authentication authentication,
@@ -164,9 +183,8 @@ public class InventoryController {
 
         // Check authorities
         Collection<? extends GrantedAuthority> auths = authentication.getAuthorities();
-        boolean isAdmin = auths.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        boolean isManager = auths.stream().anyMatch(a -> a.getAuthority().equals("ROLE_MANAGER"));
-        boolean isOperator = auths.stream().anyMatch(a -> a.getAuthority().equals("ROLE_OPERATOR"));
+        boolean isManager = auths.stream().anyMatch(a -> "ROLE_MANAGER".equals(a.getAuthority()));
+        boolean isOperator = auths.stream().anyMatch(a -> "ROLE_OPERATOR".equals(a.getAuthority()));
 
         if (isOperator) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Operadores no pueden actualizar precios");

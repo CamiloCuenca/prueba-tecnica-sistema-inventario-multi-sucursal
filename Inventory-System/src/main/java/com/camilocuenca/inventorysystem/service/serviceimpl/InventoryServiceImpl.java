@@ -105,6 +105,27 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    public Page<InventoryViewDto> getProductInventoryInAllBranches(UUID requesterUserId, UUID productId, Pageable pageable) {
+        // Validar que el usuario exista
+        userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Según las reglas del sistema, todos los roles pueden ver la disponibilidad en otras sucursales
+        // (operadores pueden ver pero solo operar en su propia sucursal). No bloqueamos por rol aquí.
+
+        Page<Inventory> page = inventoryRepository.findByProductId(productId, pageable);
+
+        List<InventoryViewDto> dtos = page.stream()
+                .map(i -> {
+                    Branch b = i.getBranch();
+                    return toInventoryViewDto(i, b);
+                })
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
+    @Override
     @org.springframework.transaction.annotation.Transactional
     public void updateAverageCost(UUID productId, UUID branchId, java.math.BigDecimal purchaseQuantity, java.math.BigDecimal purchasePrice) {
         if (purchaseQuantity == null || purchasePrice == null) {
