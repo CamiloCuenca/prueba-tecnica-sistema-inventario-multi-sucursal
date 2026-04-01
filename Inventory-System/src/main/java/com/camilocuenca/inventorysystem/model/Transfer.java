@@ -10,6 +10,8 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.camilocuenca.inventorysystem.Enums.RoutePriority;
+
 @Getter
 @Setter
 @Entity
@@ -61,5 +63,22 @@ public class Transfer {
     // Fecha estimada de llegada
     @Column(name = "estimated_arrival")
     private Instant estimatedArrival;
+
+    // Logistics fields
+    @Column(name = "route_id")
+    private String routeId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "route_priority", length = 20)
+    private RoutePriority routePriority;
+
+    @Column(name = "estimated_transit_minutes")
+    private Integer estimatedTransitMinutes;
+
+    @Column(name = "actual_transit_minutes")
+    private Integer actualTransitMinutes;
+
+    @Column(name = "route_cost")
+    private Double routeCost;
 
 }

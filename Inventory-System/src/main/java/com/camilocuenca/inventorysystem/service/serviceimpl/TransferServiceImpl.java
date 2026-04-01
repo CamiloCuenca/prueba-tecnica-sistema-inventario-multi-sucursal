@@ -325,6 +325,17 @@ public class TransferServiceImpl implements TransferService {
 
         transfer.setCarrier(body.getCarrier());
         transfer.setEstimatedArrival(body.getEstimatedArrival());
+        // Registrar metadata de ruta si viene
+        if (body.getRouteId() != null) transfer.setRouteId(body.getRouteId());
+        if (body.getRoutePriority() != null) {
+            try {
+                transfer.setRoutePriority(com.camilocuenca.inventorysystem.Enums.RoutePriority.valueOf(body.getRoutePriority()));
+            } catch (IllegalArgumentException ignored) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "routePriority inválido. Valores permitidos: LOW, MEDIUM, HIGH, URGENT");
+            }
+        }
+        if (body.getEstimatedTransitMinutes() != null) transfer.setEstimatedTransitMinutes(body.getEstimatedTransitMinutes());
+        if (body.getRouteCost() != null) transfer.setRouteCost(body.getRouteCost());
         transfer.setStatus("IN_TRANSIT");
         // No sobrescribir shippedAt (fecha de preparación). Registrar la fecha real de despacho en dispatchedAt si no existe.
         if (transfer.getDispatchedAt() == null) {
@@ -342,6 +353,18 @@ public class TransferServiceImpl implements TransferService {
         resp.setDispatchedAt(transfer.getDispatchedAt());
         resp.setCarrier(transfer.getCarrier());
         resp.setEstimatedArrival(transfer.getEstimatedArrival());
+
+        // Calcular minutos de tránsito estimados si no se proporcionaron
+        if (body.getEstimatedTransitMinutes() == null && transfer.getRoutePriority() != null) {
+            Double originLat = transfer.getOriginBranch().getLatitude();
+            Double originLon = transfer.getOriginBranch().getLongitude();
+            Double destLat = transfer.getDestinationBranch().getLatitude();
+            Double destLon = transfer.getDestinationBranch().getLongitude();
+            double distanceKm = haversineKm(originLat, originLon, destLat, destLon);
+            int estimatedMinutes = estimateMinutesFromDistanceKm(distanceKm, transfer.getRoutePriority());
+            resp.setEstimatedTransitMinutes(estimatedMinutes);
+        }
+
         return resp;
     }
 
@@ -478,13 +501,15 @@ public class TransferServiceImpl implements TransferService {
         if (anyReceived) {
             if (allFullyReceived) {
                 transfer.setStatus("RECEIVED");
-            } else if (anyMissingOverall) {
-                transfer.setStatus("PARTIALLY_RECEIVED");
             } else {
-                // Si hay recepciones pero ninguna falta detectada, marcar parcialmente recibido
                 transfer.setStatus("PARTIALLY_RECEIVED");
             }
             transfer.setReceivedAt(Instant.now());
+            // Calcular minutos reales de tránsito si dispatchedAt existe
+            if (transfer.getDispatchedAt() != null) {
+                long minutes = java.time.Duration.between(transfer.getDispatchedAt(), Instant.now()).toMinutes();
+                transfer.setActualTransitMinutes((int) Math.max(0, minutes));
+            }
             transferRepository.save(transfer);
         }
 
@@ -499,5 +524,36 @@ public class TransferServiceImpl implements TransferService {
         resp.setCarrier(transfer.getCarrier());
         resp.setEstimatedArrival(transfer.getEstimatedArrival());
         return resp;
+    }
+
+    private double haversineKm(Double lat1, Double lon1, Double lat2, Double lon2) {
+        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return -1d;
+        final int R = 6371; // Radius of the earth in km
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    private int estimateMinutesFromDistanceKm(double km, com.camilocuenca.inventorysystem.Enums.RoutePriority priority) {
+        // Velocidades media estimadas por prioridad (km/h)
+        double speedKmh = 50; // default
+        if (priority == null) priority = com.camilocuenca.inventorysystem.Enums.RoutePriority.MEDIUM;
+        switch (priority) {
+            case URGENT:
+                speedKmh = 80; break;
+            case HIGH:
+                speedKmh = 60; break;
+            case MEDIUM:
+                speedKmh = 45; break;
+            case LOW:
+                speedKmh = 30; break;
+        }
+        if (km < 0) return -1;
+        double hours = km / speedKmh;
+        return (int) Math.max(1, Math.round(hours * 60));
     }
 }
