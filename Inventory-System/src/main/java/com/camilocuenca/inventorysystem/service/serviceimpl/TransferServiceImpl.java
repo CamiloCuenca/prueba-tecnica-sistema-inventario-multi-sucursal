@@ -1,8 +1,11 @@
 package com.camilocuenca.inventorysystem.service.serviceimpl;
 
 import com.camilocuenca.inventorysystem.dto.transfer.*;
+import com.camilocuenca.inventorysystem.dto.transfer.TransferReceiveDto;
 import com.camilocuenca.inventorysystem.model.*;
+import com.camilocuenca.inventorysystem.model.TransferAlert;
 import com.camilocuenca.inventorysystem.repository.*;
+import com.camilocuenca.inventorysystem.repository.TransferAlertRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.TransferService;
 import com.camilocuenca.inventorysystem.exceptions.InsufficientStockException;
 import com.camilocuenca.inventorysystem.Enums.Role;
@@ -27,6 +30,7 @@ public class TransferServiceImpl implements TransferService {
     private final UserRepository userRepository;
     private final InventoryRepository inventoryRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
+    private final TransferAlertRepository transferAlertRepository;
 
     @Autowired
     public TransferServiceImpl(TransferRepository transferRepository,
@@ -35,7 +39,8 @@ public class TransferServiceImpl implements TransferService {
                                ProductRepository productRepository,
                                UserRepository userRepository,
                                InventoryRepository inventoryRepository,
-                               InventoryTransactionRepository inventoryTransactionRepository) {
+                               InventoryTransactionRepository inventoryTransactionRepository,
+                               TransferAlertRepository transferAlertRepository) {
         this.transferRepository = transferRepository;
         this.transferDetailRepository = transferDetailRepository;
         this.branchRepository = branchRepository;
@@ -43,6 +48,7 @@ public class TransferServiceImpl implements TransferService {
         this.userRepository = userRepository;
         this.inventoryRepository = inventoryRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
+        this.transferAlertRepository = transferAlertRepository;
     }
 
     /**
@@ -239,6 +245,139 @@ public class TransferServiceImpl implements TransferService {
             return dr;
         }).collect(Collectors.toList());
         resp.setItems(items);
+        return resp;
+    }
+
+    @Override
+    @Transactional
+    public TransferResponseDto dispatchTransfer(UUID transferId, TransferDispatchDto body, UUID requesterUserId) {
+        Transfer transfer = transferRepository.findById(transferId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transferencia no encontrada"));
+
+        User requester = userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Solo origin branch o admin puede registrar el despacho
+        boolean isOriginUser = requester.getBranch() != null && requester.getBranch().getId().equals(transfer.getOriginBranch().getId());
+        boolean isAdmin = requester.getRole() != null && Role.ADMIN.equals(requester.getRole());
+        if (!isOriginUser && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no autorizado para registrar el despacho");
+        }
+
+        transfer.setCarrier(body.getCarrier());
+        transfer.setEstimatedArrival(body.getEstimatedArrival());
+        transfer.setStatus("IN_TRANSIT");
+        transfer.setShippedAt(Instant.now());
+        transferRepository.save(transfer);
+
+        TransferResponseDto resp = new TransferResponseDto();
+        resp.setId(transfer.getId());
+        resp.setStatus(transfer.getStatus());
+        resp.setOriginBranchId(transfer.getOriginBranch().getId());
+        resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
+        resp.setShippedAt(transfer.getShippedAt());
+        resp.setCreatedAt(transfer.getCreatedAt());
+        return resp;
+    }
+
+    @Override
+    @Transactional
+    public TransferResponseDto receiveTransfer(UUID transferId, TransferReceiveDto body, UUID requesterUserId) {
+        Transfer transfer = transferRepository.findById(transferId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transferencia no encontrada"));
+
+        User requester = userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Solo destination branch o admin puede confirmar recepción
+        boolean isDestinationUser = requester.getBranch() != null && requester.getBranch().getId().equals(transfer.getDestinationBranch().getId());
+        boolean isAdmin = requester.getRole() != null && Role.ADMIN.equals(requester.getRole());
+        if (!isDestinationUser && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no autorizado para confirmar la recepción");
+        }
+
+        // Mapear detalles por product
+        List<TransferDetail> details = transferDetailRepository.findByTransferId(transferId);
+        Map<UUID, TransferDetail> detailByProduct = details.stream().collect(Collectors.toMap(d -> d.getProduct().getId(), d -> d));
+
+        List<InventoryTransaction> transactions = new ArrayList<>();
+        List<TransferAlert> alerts = new ArrayList<>();
+
+        boolean anyMissing = false;
+
+        for (TransferReceiveDto.TransferReceiveItemDto it : body.getItems()) {
+            TransferDetail td = detailByProduct.get(it.getProductId());
+            if (td == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Producto no pertenece a la transferencia: " + it.getProductId());
+
+            java.math.BigDecimal received = it.getReceivedQuantity();
+            java.math.BigDecimal confirmed = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
+
+            // Si recibido < confirmado -> hay faltantes
+            if (received.compareTo(confirmed) < 0) {
+                java.math.BigDecimal missing = confirmed.subtract(received);
+                anyMissing = true;
+
+                TransferAlert alert = new TransferAlert();
+                alert.setTransfer(transfer);
+                alert.setProductId(it.getProductId());
+                alert.setMissingQuantity(missing);
+                alert.setCreatedAt(Instant.now());
+                alert.setStatus("OPEN");
+                alerts.add(alert);
+            }
+
+            // Incrementar inventario en destination (atómico)
+            int updated = inventoryRepository.incrementQuantity(transfer.getDestinationBranch().getId(), it.getProductId(), received);
+            if (updated == 0) {
+                // No existe inventario para este producto en destino: crear uno
+                Inventory inv = new Inventory();
+                inv.setBranch(transfer.getDestinationBranch());
+                Product p = productRepository.findById(it.getProductId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Producto no encontrado: " + it.getProductId()));
+                inv.setProduct(p);
+                inv.setQuantity(received);
+                inv.setUpdatedAt(Instant.now());
+                // save
+                inventoryRepository.save(inv);
+            }
+
+            // Registrar transaction IN en destino
+            InventoryTransaction tx = new InventoryTransaction();
+            tx.setProduct(td.getProduct());
+            tx.setBranch(transfer.getDestinationBranch());
+            tx.setUser(requester);
+            tx.setType("IN");
+            tx.setQuantity(received);
+            tx.setReason("TRANSFER_IN");
+            tx.setReferenceType("TRANSFER");
+            tx.setReferenceId(transfer.getId());
+            transactions.add(tx);
+
+            // Actualizar receivedQuantity en detalle
+            td.setReceivedQuantity(received);
+            transferDetailRepository.save(td);
+        }
+
+        // Guardar alertas y transacciones
+        if (!alerts.isEmpty()) {
+            transferAlertRepository.saveAll(alerts);
+        }
+        if (!transactions.isEmpty()) {
+            inventoryTransactionRepository.saveAll(transactions);
+        }
+
+        // Actualizar estado
+        transfer.setReceivedAt(Instant.now());
+        transfer.setStatus(anyMissing ? "PARTIALLY_RECEIVED" : "RECEIVED");
+        transferRepository.save(transfer);
+
+        // Construir respuesta
+        TransferResponseDto resp = new TransferResponseDto();
+        resp.setId(transfer.getId());
+        resp.setStatus(transfer.getStatus());
+        resp.setOriginBranchId(transfer.getOriginBranch().getId());
+        resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
+        resp.setReceivedAt(transfer.getReceivedAt());
+        resp.setCreatedAt(transfer.getCreatedAt());
         return resp;
     }
 }

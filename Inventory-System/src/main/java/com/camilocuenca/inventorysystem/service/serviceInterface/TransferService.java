@@ -3,6 +3,8 @@ package com.camilocuenca.inventorysystem.service.serviceInterface;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferPrepareDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferRequestDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferResponseDto;
+import com.camilocuenca.inventorysystem.dto.transfer.TransferDispatchDto;
+import com.camilocuenca.inventorysystem.dto.transfer.TransferReceiveDto;
 
 import java.util.UUID;
 
@@ -47,5 +49,14 @@ public interface TransferService {
      */
     TransferResponseDto prepareTransfer(UUID transferId, TransferPrepareDto body, UUID requesterUserId);
 
-}
+    /**
+     * Registrar envío: registrar carrier y fecha estimada.
+     */
+    TransferResponseDto dispatchTransfer(UUID transferId, TransferDispatchDto body, UUID requesterUserId);
 
+    /**
+     * Confirmar recepción (parcial o completa). Actualiza inventario de destino, crea alertas por faltantes.
+     */
+    TransferResponseDto receiveTransfer(UUID transferId, TransferReceiveDto body, UUID requesterUserId);
+
+}

@@ -1,6 +1,8 @@
 package com.camilocuenca.inventorysystem.controller;
 
+import com.camilocuenca.inventorysystem.dto.transfer.TransferDispatchDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferPrepareDto;
+import com.camilocuenca.inventorysystem.dto.transfer.TransferReceiveDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferRequestDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferResponseDto;
 import com.camilocuenca.inventorysystem.model.User;
@@ -74,6 +76,44 @@ public class TransferController {
 
         try {
             TransferResponseDto resp = transferService.prepareTransfer(id, body, requesterId);
+            return ResponseEntity.ok(resp);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/transfers/{id}/dispatch")
+    public ResponseEntity<?> dispatchTransfer(Authentication authentication, @PathVariable UUID id, @Valid @RequestBody TransferDispatchDto body, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.badRequest().body(bindingResult.getFieldErrors());
+        }
+
+        UUID requesterId = resolveRequesterId(authentication);
+        if (requesterId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+
+        try {
+            TransferResponseDto resp = transferService.dispatchTransfer(id, body, requesterId);
+            return ResponseEntity.ok(resp);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/transfers/{id}/receive")
+    public ResponseEntity<?> receiveTransfer(Authentication authentication, @PathVariable UUID id, @Valid @RequestBody TransferReceiveDto body, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.badRequest().body(bindingResult.getFieldErrors());
+        }
+
+        UUID requesterId = resolveRequesterId(authentication);
+        if (requesterId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+
+        try {
+            TransferResponseDto resp = transferService.receiveTransfer(id, body, requesterId);
             return ResponseEntity.ok(resp);
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());

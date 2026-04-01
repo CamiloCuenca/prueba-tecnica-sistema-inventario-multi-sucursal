@@ -28,4 +28,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
     @Query("UPDATE Inventory i SET i.quantity = i.quantity - :qty WHERE i.branch.id = :branchId AND i.product.id = :productId AND i.quantity >= :qty")
     int decrementQuantity(@Param("branchId") UUID branchId, @Param("productId") UUID productId, @Param("qty") java.math.BigDecimal qty);
 
+    // Incremento atómico de stock (para recepción)
+    @Modifying
+    @Query("UPDATE Inventory i SET i.quantity = i.quantity + :qty WHERE i.branch.id = :branchId AND i.product.id = :productId")
+    int incrementQuantity(@Param("branchId") UUID branchId, @Param("productId") UUID productId, @Param("qty") java.math.BigDecimal qty);
+
 }
