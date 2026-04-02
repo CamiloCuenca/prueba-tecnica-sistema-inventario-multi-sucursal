@@ -35,6 +35,10 @@ public class Inventory {
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
 
+    // Nuevo: stock mínimo configurado para este producto en esta sucursal
+    @Column(name = "min_stock", precision = 12, scale = 2)
+    private BigDecimal minStock;
+
     // Precio de venta actual en esta sucursal (moneda)
     @ColumnDefault("0")
     @Column(name = "sale_price", precision = 12, scale = 2)

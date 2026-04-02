@@ -2,9 +2,11 @@ package com.camilocuenca.inventorysystem.service.serviceInterface;
 
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
+import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,4 +66,15 @@ public interface InventoryService {
      * @param salePrice nuevo precio de venta (BigDecimal, >= 0)
      */
     void updateSalePrice(UUID productId, UUID branchId, java.math.BigDecimal salePrice);
+
+    /**
+     * ALERTAS: obtener productos con stock menor o igual al minStock configurado en la sucursal.
+     * - Retorna una página de InventoryLowStockDto para evitar traer todo a memoria.
+     */
+    org.springframework.data.domain.Page<InventoryLowStockDto> getLowStockAlerts(UUID branchId, Pageable pageable);
+
+    /**
+     * Versión abreviada: devuelve la lista (por ejemplo para widgets que no requieren paginación completa).
+     */
+    java.util.List<InventoryLowStockDto> getLowStockAlerts(UUID branchId);
 }

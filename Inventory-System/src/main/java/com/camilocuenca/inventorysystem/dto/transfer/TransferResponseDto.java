@@ -16,6 +16,12 @@ public class TransferResponseDto {
     private Instant receivedAt;
     private String carrier;
     private Instant estimatedArrival;
+    // Logistics
+    private String routeId;
+    private String routePriority;
+    private Integer estimatedTransitMinutes;
+    private Integer actualTransitMinutes;
+    private Double routeCost;
     private List<TransferDetailResponseDto> items;
 
     public UUID getId() {
@@ -96,6 +102,46 @@ public class TransferResponseDto {
 
     public void setEstimatedArrival(Instant estimatedArrival) {
         this.estimatedArrival = estimatedArrival;
+    }
+
+    public String getRouteId() {
+        return routeId;
+    }
+
+    public void setRouteId(String routeId) {
+        this.routeId = routeId;
+    }
+
+    public String getRoutePriority() {
+        return routePriority;
+    }
+
+    public void setRoutePriority(String routePriority) {
+        this.routePriority = routePriority;
+    }
+
+    public Integer getEstimatedTransitMinutes() {
+        return estimatedTransitMinutes;
+    }
+
+    public void setEstimatedTransitMinutes(Integer estimatedTransitMinutes) {
+        this.estimatedTransitMinutes = estimatedTransitMinutes;
+    }
+
+    public Integer getActualTransitMinutes() {
+        return actualTransitMinutes;
+    }
+
+    public void setActualTransitMinutes(Integer actualTransitMinutes) {
+        this.actualTransitMinutes = actualTransitMinutes;
+    }
+
+    public Double getRouteCost() {
+        return routeCost;
+    }
+
+    public void setRouteCost(Double routeCost) {
+        this.routeCost = routeCost;
     }
 
     public List<TransferDetailResponseDto> getItems() {

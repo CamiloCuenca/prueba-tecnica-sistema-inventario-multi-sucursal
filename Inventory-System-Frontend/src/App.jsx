@@ -1,17 +1,7 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React from "react";
+import AppRoutes from "./routes/AppRoutes";
 
-function App() {
-  const [count, setCount] = useState(0)
+// App solo compone las rutas, sin lógica ni UI propia
+const App = () => <AppRoutes />;
 
-  return (
-    <>
-     
-    </>
-  )
-}
-
-export default App
+export default App;

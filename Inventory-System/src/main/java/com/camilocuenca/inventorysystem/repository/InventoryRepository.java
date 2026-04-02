@@ -33,4 +33,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
     @Query("UPDATE Inventory i SET i.quantity = i.quantity + :qty WHERE i.branch.id = :branchId AND i.product.id = :productId")
     int incrementQuantity(@Param("branchId") UUID branchId, @Param("productId") UUID productId, @Param("qty") java.math.BigDecimal qty);
 
+    // Buscar registros cuyo quantity <= minStock para la sucursal (eficiente en BD)
+    @Query("SELECT i FROM Inventory i WHERE i.branch.id = :branchId AND COALESCE(i.minStock, 0) >= i.quantity")
+    Page<Inventory> findLowStockByBranch(@Param("branchId") UUID branchId, Pageable pageable);
+
 }

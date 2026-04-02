@@ -24,6 +24,13 @@ public class Branch {
     @Column(name = "address")
     private String address;
 
+    // Coordenadas opcionales para cálculo de rutas/estimaciones
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
     private Instant createdAt;
