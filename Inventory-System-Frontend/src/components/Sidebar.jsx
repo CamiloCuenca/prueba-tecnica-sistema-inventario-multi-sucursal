@@ -6,6 +6,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Link, useLocation } from "react-router-dom";
 import { decodeJWT } from "../utils/jwt";
+import { LocalGroceryStore, PointOfSale } from "@mui/icons-material";
 
 function getRole() {
   const token = sessionStorage.getItem("token");
@@ -18,13 +19,25 @@ const baseMenu = [
     label: "Dashboard",
     icon: <DashboardIcon fontSize="medium" />,
     to: "/dashboard",
-    roles: ["ADMIN", "MANAGER", "OPERARIO"],
+    roles: ["ADMIN", "MANAGER", "OPERATOR"],
   },
   {
     label: "Inventario",
     icon: <Inventory2Icon fontSize="medium" />,
     to: "/inventario",
-    roles: ["ADMIN", "MANAGER", "OPERARIO"],
+    roles: ["ADMIN", "MANAGER", "OPERATOR"],
+  },
+  {
+    label: "Ventas",
+    icon: <PointOfSale fontSize="medium" />,
+    to: "/ventas",
+    roles: ["ADMIN", "MANAGER", "OPERATOR"],
+  },
+  {
+    label: "Compras",
+    icon: <LocalGroceryStore fontSize="medium" />,
+    to: "/compras",
+    roles: ["ADMIN", "MANAGER", "OPERATOR"],
   },
   {
     label: "Transacciones",
