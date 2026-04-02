@@ -8,6 +8,8 @@ export default function BranchList({ onBranchSelect, selectedBranchId }) {
   const [branches, setBranches] = useState([]);
   const [userBranchId, setUserBranchId] = useState(null);
 
+
+
   useEffect(() => {
     handleBranches().then((res) => {
       if (Array.isArray(res)) {
