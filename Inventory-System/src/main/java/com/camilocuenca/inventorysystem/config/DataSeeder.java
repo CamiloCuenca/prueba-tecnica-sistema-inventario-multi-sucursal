@@ -18,12 +18,13 @@ public class DataSeeder {
 
     @Bean
     public CommandLineRunner seedData(BranchRepository branchRepository,
-                                     ProviderRepository providerRepository,
-                                     ProductRepository productRepository,
-                                     InventoryRepository inventoryRepository,
-                                     UserRepository userRepository,
-                                     InventoryTransactionRepository inventoryTransactionRepository,
-                                     PasswordEncoder passwordEncoder) {
+                                      ProviderRepository providerRepository,
+                                      ProductRepository productRepository,
+                                      InventoryRepository inventoryRepository,
+                                      UserRepository userRepository,
+                                      InventoryTransactionRepository inventoryTransactionRepository,
+                                      com.camilocuenca.inventorysystem.repository.ProductPriceRepository productPriceRepository,
+                                      PasswordEncoder passwordEncoder) {
         return args -> {
             if (branchRepository.count() > 0) {
                 System.out.println("DataSeeder: branches already exist, skipping seeding.");
@@ -201,6 +202,39 @@ public class DataSeeder {
                 transactions.add(tx);
             }
             inventoryTransactionRepository.saveAll(transactions);
+
+            // 7) Precios de referencia por producto (Minorista, Mayorista, Promoción)
+            List<Product> savedProducts = productRepository.findAll();
+            List<com.camilocuenca.inventorysystem.model.ProductPrice> pricesToSave = new ArrayList<>();
+            for (Product prod : savedProducts) {
+                com.camilocuenca.inventorysystem.model.ProductPrice p1 = new com.camilocuenca.inventorysystem.model.ProductPrice();
+                p1.setProduct(prod);
+                p1.setLabel("Minorista");
+                p1.setPrice(new BigDecimal( (10 + Math.abs(prod.getName().hashCode()) % 90) ).setScale(2, RoundingMode.HALF_UP));
+                p1.setCurrency("COP");
+                p1.setCreatedAt(Instant.now());
+                pricesToSave.add(p1);
+
+                com.camilocuenca.inventorysystem.model.ProductPrice p2 = new com.camilocuenca.inventorysystem.model.ProductPrice();
+                p2.setProduct(prod);
+                p2.setLabel("Mayorista");
+                p2.setPrice(new BigDecimal( (8 + Math.abs(prod.getSku().hashCode()) % 70) ).setScale(2, RoundingMode.HALF_UP));
+                p2.setCurrency("COP");
+                p2.setCreatedAt(Instant.now());
+                pricesToSave.add(p2);
+
+                // posibilidad de precio promo en algunos productos
+                if (Math.abs(prod.getName().hashCode()) % 5 == 0) {
+                    com.camilocuenca.inventorysystem.model.ProductPrice p3 = new com.camilocuenca.inventorysystem.model.ProductPrice();
+                    p3.setProduct(prod);
+                    p3.setLabel("Promoción");
+                    p3.setPrice(p1.getPrice().multiply(new BigDecimal("0.85")).setScale(2, RoundingMode.HALF_UP));
+                    p3.setCurrency("COP");
+                    p3.setCreatedAt(Instant.now());
+                    pricesToSave.add(p3);
+                }
+            }
+            productPriceRepository.saveAll(pricesToSave);
 
             System.out.println("DataSeeder: seeding complete.");
         };
