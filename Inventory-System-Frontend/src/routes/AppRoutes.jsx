@@ -3,6 +3,8 @@ import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import InventarioPage from "../pages/InventarioPage";
 import Sidebar from "../components/Sidebar";
+import SalesPage from '../pages/SalesPage';
+import PurchasePage from '../pages/PurchasePage';
 
 function MainLayout({ children }) {
   return (
@@ -30,6 +32,22 @@ const AppRoutes = () => (
         element={
           <MainLayout>
             <InventarioPage />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/ventas"
+        element={
+          <MainLayout>
+            <SalesPage />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/compras"
+        element={
+          <MainLayout>
+            <PurchasePage />
           </MainLayout>
         }
       />

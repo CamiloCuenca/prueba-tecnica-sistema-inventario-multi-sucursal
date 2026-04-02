@@ -11,8 +11,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "product")
-public class Product {
+@Table(name = "provider")
+public class Provider {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", nullable = false)
@@ -21,19 +21,12 @@ public class Product {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "sku", nullable = false, length = 100)
-    private String sku;
-
-    @Column(name = "unit", length = 50)
-    private String unit;
+    @Column(name = "contact_info")
+    private String contactInfo;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
     private Instant createdAt;
 
-    // Nueva relación: muchos productos pueden pertenecer a un único proveedor (Provider)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "provider_id")
-    private Provider provider;
-
 }
+

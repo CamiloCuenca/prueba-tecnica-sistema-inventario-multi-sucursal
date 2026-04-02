@@ -31,8 +31,12 @@ public class Purchase {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "supplier")
-    private String supplier;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "provider_id")
+    private Provider provider;
+
+    @Column(name = "supplier_notes", length = 1000)
+    private String supplierNotes;
 
     @Column(name = "total", precision = 12, scale = 2)
     private BigDecimal total;

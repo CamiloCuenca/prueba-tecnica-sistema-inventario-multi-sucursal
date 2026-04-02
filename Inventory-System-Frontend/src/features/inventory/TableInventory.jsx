@@ -1,19 +1,30 @@
 import { useEffect, useState } from "react";
 import Table from '../../components/Table';
 import TablePaginator from '../../components/TablePaginator';
+import Modal from '../../components/Modal';
+import ProductCard from '../product/productCard';
+import { useProduct } from '../product/useProduct';
 import { useInventory } from './useInventory';
 
-export default function TableInventory() {
-  const { handleInventory, loading, error } = useInventory();
+export default function TableInventory({ branchId }) {
+  const { handleInventory, handleBranchInventory, loading, error } = useInventory();
+  const { handleProducts } = useProduct();
   const [inventory, setInventory] = useState([]);
   const [page, setPage] = useState(0);
-  const [size] = useState(20); 
+  const [size] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [isFirst, setIsFirst] = useState(true);
   const [isLast, setIsLast] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productLoading, setProductLoading] = useState(false);
+  const [productError, setProductError] = useState(null);
 
   const fetchData = (pageToFetch) => {
-    handleInventory({ page: pageToFetch, size }).then((res) => {
+    const fetch = branchId
+      ? handleBranchInventory({ branchId, page: pageToFetch, size })
+      : handleInventory({ page: pageToFetch, size });
+    fetch.then((res) => {
       if (res && Array.isArray(res.content)) {
         setInventory(res.content);
         setTotalPages(res.totalPages || 1);
@@ -24,13 +35,39 @@ export default function TableInventory() {
   };
 
   useEffect(() => {
+    setPage(0); // Resetear a la primera página al cambiar branch
+  }, [branchId]);
+
+  useEffect(() => {
     fetchData(page);
     // eslint-disable-next-line
-  }, [page]);
+  }, [page, branchId]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
       setPage(newPage);
+    }
+  };
+
+  const handleShowDetails = async ({ branchId, productId }) => {
+    setProductLoading(true);
+    setProductError(null);
+    setModalOpen(true);
+    try {
+      console.log('Solicitando detalles', { branchId, productId });
+      const product = await handleProducts({ branchId, productId });
+      console.log('Respuesta producto', product);
+      if (!product) {
+        setProductError("No se encontró el producto o la respuesta está vacía.");
+        setSelectedProduct(null);
+      } else {
+        setSelectedProduct(product);
+      }
+    } catch (err) {
+      setProductError("Error al obtener los detalles del producto");
+      setSelectedProduct(null);
+    } finally {
+      setProductLoading(false);
     }
   };
 
@@ -43,7 +80,7 @@ export default function TableInventory() {
 
   return (
     <div>
-      <Table data={inventory} />
+      <Table data={inventory} onAction={handleShowDetails} branchId={branchId} />
       <TablePaginator
         page={page}
         totalPages={totalPages}
@@ -51,6 +88,16 @@ export default function TableInventory() {
         isFirst={isFirst}
         isLast={isLast}
       />
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setSelectedProduct(null); }}>
+        {productLoading && <div className="text-center py-4 text-gray-500">Cargando detalles...</div>}
+        {productError && <div className="text-center py-4 text-red-500">{productError}</div>}
+        {selectedProduct && !productLoading && !productError && (
+          <ProductCard product={selectedProduct} />
+        )}
+        {!selectedProduct && !productLoading && !productError && (
+          <div className="text-center py-4 text-gray-500">No se encontraron detalles para este producto.</div>
+        )}
+      </Modal>
     </div>
   );
 }

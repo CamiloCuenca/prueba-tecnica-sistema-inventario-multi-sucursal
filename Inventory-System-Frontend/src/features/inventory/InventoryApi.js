@@ -1,3 +1,11 @@
+// Inventario de una sucursal específica
+export const getBranchInventory = async ({ branchId, page = 0, size = 20 }) => {
+  if (!branchId) throw new Error("branchId es requerido");
+  const response = await api.get(`/api/branches/${branchId}/inventory`, {
+    params: { page, size },
+  });
+  return response.data;
+};
 import { api } from "../../api/client";
 
 // Recibe page y size como parámetros para paginación

@@ -6,6 +6,7 @@ import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
 import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.UserRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.InventoryService;
+import com.camilocuenca.inventorysystem.service.serviceInterface.ProductPriceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.validation.BindingResult;
 import jakarta.validation.Valid;
 import com.camilocuenca.inventorysystem.dto.inventory.SalePriceUpdateDto;
+import com.camilocuenca.inventorysystem.dto.product.ProductPriceDto;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
@@ -29,15 +31,17 @@ public class InventoryController {
 
     private final InventoryService inventoryService;
     private final UserRepository userRepository;
+    private final ProductPriceService productPriceService;
 
     /**
      * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario* @param inventoryService servicio de inventario
      * @param userRepository repositorio de usuarios
      */
     @Autowired
-    public InventoryController(InventoryService inventoryService, UserRepository userRepository) {
+    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService) {
         this.inventoryService = inventoryService;
         this.userRepository = userRepository;
+        this.productPriceService = productPriceService;
     }
 
     /**
@@ -217,5 +221,52 @@ public class InventoryController {
         }
         List<BranchDto> branches = inventoryService.getAllBranches();
         return ResponseEntity.ok(branches);
+    }
+
+    /**
+     * Endpoint para listar productos por proveedor (paginado).
+     * Cualquier usuario autenticado puede consultar esta lista.
+     */
+    @GetMapping("/providers/{providerId}/products")
+    public ResponseEntity<Page<com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto>> getProductsByProvider(Authentication authentication,
+                                                                                                                        @PathVariable UUID providerId,
+                                                                                                                        Pageable pageable) {
+         UUID requesterId = resolveRequesterId(authentication);
+         if (requesterId == null) {
+             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+         }
+         Page<com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto> page = inventoryService.getProductsByProvider(requesterId, providerId, pageable);
+         return ResponseEntity.ok(page);
+     }
+
+    /**
+     * Listar precios de referencia para un producto.
+     */
+    @GetMapping("/products/{productId}/prices")
+    public ResponseEntity<java.util.List<ProductPriceDto>> getPricesForProduct(@PathVariable UUID productId) {
+        java.util.List<ProductPriceDto> list = productPriceService.getPricesForProduct(productId);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Crear un precio de referencia para un producto. Requiere autenticación.
+     */
+    @PostMapping("/products/{productId}/prices")
+    public ResponseEntity<ProductPriceDto> createPrice(@PathVariable UUID productId, @Valid @RequestBody ProductPriceDto body) {
+        body.setProductId(productId);
+        ProductPriceDto created = productPriceService.createPrice(body);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PutMapping("/prices/{priceId}")
+    public ResponseEntity<ProductPriceDto> updatePrice(@PathVariable UUID priceId, @Valid @RequestBody ProductPriceDto body) {
+        ProductPriceDto updated = productPriceService.updatePrice(priceId, body);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/prices/{priceId}")
+    public ResponseEntity<Void> deletePrice(@PathVariable UUID priceId) {
+        productPriceService.deletePrice(priceId);
+        return ResponseEntity.noContent().build();
     }
 }
