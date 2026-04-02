@@ -45,6 +45,9 @@ public class PurchaseServiceImpl implements PurchaseService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ProviderRepository providerRepository;
+
     @Override
     @Transactional
     public PurchaseResponseDto createPurchase(UUID requesterUserId, PurchaseCreateDto dto) {
@@ -58,7 +61,14 @@ public class PurchaseServiceImpl implements PurchaseService {
         purchase.setBranch(new Branch());
         purchase.getBranch().setId(dto.getBranchId());
         purchase.setUser(user);
-        purchase.setSupplier(dto.getSupplierId() != null ? dto.getSupplierId().toString() : dto.getNotes());
+        // Resolver provider si se pasó supplierId, si no, almacenar notas libres
+        if (dto.getSupplierId() != null) {
+            com.camilocuenca.inventorysystem.model.Provider prov = providerRepository.findById(dto.getSupplierId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider not found: " + dto.getSupplierId()));
+            purchase.setProvider(prov);
+        } else {
+            purchase.setSupplierNotes(dto.getNotes());
+        }
         purchase.setPaymentTerms(dto.getPaymentTerms());
         purchase.setExpectedDeliveryDate(dto.getExpectedDeliveryDate());
         purchase.setCreatedAt(Instant.now());
@@ -221,7 +231,14 @@ public class PurchaseServiceImpl implements PurchaseService {
         PurchaseResponseDto dto = new PurchaseResponseDto();
         dto.setId(purchase.getId());
         dto.setBranchId(purchase.getBranch() != null ? purchase.getBranch().getId() : null);
-        dto.setSupplier(purchase.getSupplier());
+        // Mantener compatibilidad: si hay provider mostrar su nombre, si no mostrar notas
+        String supplierDisplay = null;
+        if (purchase.getProvider() != null) {
+            supplierDisplay = purchase.getProvider().getName();
+        } else {
+            supplierDisplay = purchase.getSupplierNotes();
+        }
+        dto.setSupplier(supplierDisplay);
         PurchaseResponseDto.PurchaseStatusDto st = new PurchaseResponseDto.PurchaseStatusDto();
         st.setName(purchase.getStatus() != null ? purchase.getStatus().name() : null);
         dto.setStatus(st);
@@ -250,7 +267,14 @@ public class PurchaseServiceImpl implements PurchaseService {
         PurchaseSummaryDto dto = new PurchaseSummaryDto();
         dto.setId(purchase.getId());
         dto.setBranchId(purchase.getBranch() != null ? purchase.getBranch().getId() : null);
-        dto.setSupplier(purchase.getSupplier());
+        // Mostrar nombre del proveedor si existe, sino mostrar notas de proveedor
+        String supplierDisplay2 = null;
+        if (purchase.getProvider() != null) {
+            supplierDisplay2 = purchase.getProvider().getName();
+        } else {
+            supplierDisplay2 = purchase.getSupplierNotes();
+        }
+        dto.setSupplier(supplierDisplay2);
         PurchaseSummaryDto.PurchaseStatusDto st = new PurchaseSummaryDto.PurchaseStatusDto();
         st.setName(purchase.getStatus() != null ? purchase.getStatus().name() : null);
         dto.setStatus(st);

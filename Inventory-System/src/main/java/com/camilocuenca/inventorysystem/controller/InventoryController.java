@@ -218,4 +218,20 @@ public class InventoryController {
         List<BranchDto> branches = inventoryService.getAllBranches();
         return ResponseEntity.ok(branches);
     }
+
+    /**
+     * Endpoint para listar productos por proveedor (paginado).
+     * Cualquier usuario autenticado puede consultar esta lista.
+     */
+    @GetMapping("/providers/{providerId}/products")
+    public ResponseEntity<Page<com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto>> getProductsByProvider(Authentication authentication,
+                                                                                                                       @PathVariable UUID providerId,
+                                                                                                                       Pageable pageable) {
+        UUID requesterId = resolveRequesterId(authentication);
+        if (requesterId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Page<com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto> page = inventoryService.getProductsByProvider(requesterId, providerId, pageable);
+        return ResponseEntity.ok(page);
+    }
 }

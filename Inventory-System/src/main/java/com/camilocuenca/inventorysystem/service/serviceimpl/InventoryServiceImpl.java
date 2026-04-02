@@ -4,6 +4,7 @@ import com.camilocuenca.inventorysystem.Enums.Role;
 import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
+import com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto;
 import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.Inventory;
 import com.camilocuenca.inventorysystem.model.Product;
@@ -11,6 +12,8 @@ import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.BranchRepository;
 import com.camilocuenca.inventorysystem.repository.InventoryRepository;
 import com.camilocuenca.inventorysystem.repository.UserRepository;
+import com.camilocuenca.inventorysystem.repository.ProductRepository;
+import com.camilocuenca.inventorysystem.repository.ProviderRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -31,12 +34,16 @@ public class InventoryServiceImpl implements InventoryService {
     private final InventoryRepository inventoryRepository;
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
+    private final ProductRepository productRepository;
+    private final ProviderRepository providerRepository;
 
     @Autowired
-    public InventoryServiceImpl(InventoryRepository inventoryRepository, UserRepository userRepository, BranchRepository branchRepository) {
+    public InventoryServiceImpl(InventoryRepository inventoryRepository, UserRepository userRepository, BranchRepository branchRepository, ProductRepository productRepository, ProviderRepository providerRepository) {
         this.inventoryRepository = inventoryRepository;
         this.userRepository = userRepository;
         this.branchRepository = branchRepository;
+        this.productRepository = productRepository;
+        this.providerRepository = providerRepository;
     }
 
     @Override
@@ -212,6 +219,23 @@ public class InventoryServiceImpl implements InventoryService {
         return branches.stream().map(b -> new BranchDto(b.getId(), b.getName())).collect(Collectors.toList());
     }
 
+    @Override
+    public Page<ProductByProviderDto> getProductsByProvider(UUID requesterUserId, UUID providerId, Pageable pageable) {
+        // Validar existencia del usuario que realiza la petición
+        userRepository.findById(requesterUserId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Validar existencia del proveedor
+        providerRepository.findById(providerId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proveedor no encontrado"));
+
+        Page<Product> page = productRepository.findByProviderId(providerId, pageable);
+
+        List<ProductByProviderDto> dtos = page.stream()
+                .map(this::toProductByProviderDto)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
     private ProductCatalogItemDto toProductCatalogDto(Inventory inv) {
         Product p = inv.getProduct();
         ProductCatalogItemDto dto = new ProductCatalogItemDto();
@@ -234,6 +258,16 @@ public class InventoryServiceImpl implements InventoryService {
         dto.setProductName(p.getName());
         dto.setQuantity(i.getQuantity());
         dto.setUpdatedAt(i.getUpdatedAt());
+        return dto;
+    }
+
+    private ProductByProviderDto toProductByProviderDto(Product p) {
+        ProductByProviderDto dto = new ProductByProviderDto();
+        dto.setProductId(p.getId());
+        dto.setSku(p.getSku());
+        dto.setName(p.getName());
+        dto.setUnit(p.getUnit());
+        // Otros mapeos según sea necesario
         return dto;
     }
 }

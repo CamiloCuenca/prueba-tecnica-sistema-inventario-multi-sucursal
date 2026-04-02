@@ -4,6 +4,7 @@ import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
 import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
+import com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -84,4 +85,14 @@ public interface InventoryService {
      *
      */
     List<BranchDto> getAllBranches();
+
+    /**
+     * Lista paginada de productos asociados a un proveedor especificado.
+     * Cualquier usuario autenticado puede consultar esta lista.
+     * @param requesterUserId id del usuario que realiza la petición (para auditoría/permiso)
+     * @param providerId id del proveedor
+     * @param pageable paginación
+     * @return página con ProductByProviderDto
+     */
+    Page<ProductByProviderDto> getProductsByProvider(UUID requesterUserId, UUID providerId, Pageable pageable);
 }
