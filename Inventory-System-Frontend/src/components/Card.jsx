@@ -12,14 +12,15 @@ import React from "react";
  */
 
 
-const Card = ({ children, className = "", ...rest }) => {
+
+const Card = ({ children, className = "", as: Component = "div", ...rest }) => {
 	return (
-		<div
-			className={`bg-white  rounded-lg shadow p-6 transition-colors duration-200 ${className}`}
+		<Component
+			className={`bg-white rounded-lg shadow p-6 transition-colors duration-200 ${className}`}
 			{...rest}
 		>
 			{children}
-		</div>
+		</Component>
 	);
 };
 
