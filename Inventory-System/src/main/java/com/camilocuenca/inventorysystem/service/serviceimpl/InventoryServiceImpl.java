@@ -3,6 +3,7 @@ package com.camilocuenca.inventorysystem.service.serviceimpl;
 import com.camilocuenca.inventorysystem.Enums.Role;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
+import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.Inventory;
 import com.camilocuenca.inventorysystem.model.Product;
@@ -177,6 +178,32 @@ public class InventoryServiceImpl implements InventoryService {
 
         inventory.setSalePrice(salePrice.setScale(2, java.math.RoundingMode.HALF_UP));
         inventoryRepository.save(inventory);
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto> getLowStockAlerts(java.util.UUID branchId, Pageable pageable) {
+        // Validar existencia de la sucursal
+        branchRepository.findById(branchId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sucursal no encontrada"));
+
+        Page<Inventory> page = inventoryRepository.findLowStockByBranch(branchId, pageable);
+        List<com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto> dtos = page.stream().map(i -> {
+            com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto dto = new com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto();
+            Product p = i.getProduct();
+            dto.setProductId(p.getId());
+            dto.setProductName(p.getName());
+            dto.setCurrentStock(i.getQuantity() != null ? i.getQuantity() : java.math.BigDecimal.ZERO);
+            dto.setMinStock(i.getMinStock() != null ? i.getMinStock() : java.math.BigDecimal.ZERO);
+            return dto;
+        }).collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
+    @Override
+    public java.util.List<com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto> getLowStockAlerts(java.util.UUID branchId) {
+        // Llamar a la versión paginada con un tamaño razonable (por ejemplo 100)
+        Pageable p = org.springframework.data.domain.PageRequest.of(0, 100);
+        return getLowStockAlerts(branchId, p).getContent();
     }
 
     private ProductCatalogItemDto toProductCatalogDto(Inventory inv) {
