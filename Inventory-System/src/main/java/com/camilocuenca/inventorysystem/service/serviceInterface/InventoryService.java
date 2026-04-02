@@ -1,5 +1,6 @@
 package com.camilocuenca.inventorysystem.service.serviceInterface;
 
+import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
 import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
@@ -77,4 +78,10 @@ public interface InventoryService {
      * Versión abreviada: devuelve la lista (por ejemplo para widgets que no requieren paginación completa).
      */
     java.util.List<InventoryLowStockDto> getLowStockAlerts(UUID branchId);
+
+
+    /** Obtiene los nombres e ID de todas las sucursales
+     *
+     */
+    List<BranchDto> getAllBranches();
 }

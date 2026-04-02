@@ -1,5 +1,6 @@
 package com.camilocuenca.inventorysystem.controller;
 
+import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
 import com.camilocuenca.inventorysystem.model.User;
@@ -18,6 +19,7 @@ import com.camilocuenca.inventorysystem.dto.inventory.SalePriceUpdateDto;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -201,5 +203,19 @@ public class InventoryController {
         // Call service
         inventoryService.updateSalePrice(productId, branchId, body.getSalePrice());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Endpoint para listar los nombres e IDs de todas las sucursales.
+     * Cualquier usuario autenticado puede consultar esta lista.
+     */
+    @GetMapping("/branches")
+    public ResponseEntity<java.util.List<BranchDto>> getAllBranches(Authentication authentication) {
+        UUID requesterId = resolveRequesterId(authentication);
+        if (requesterId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        List<BranchDto> branches = inventoryService.getAllBranches();
+        return ResponseEntity.ok(branches);
     }
 }
