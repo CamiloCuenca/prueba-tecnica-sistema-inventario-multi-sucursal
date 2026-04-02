@@ -1,9 +1,9 @@
 package com.camilocuenca.inventorysystem.service.serviceimpl;
 
 import com.camilocuenca.inventorysystem.Enums.Role;
+import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
-import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.Inventory;
 import com.camilocuenca.inventorysystem.model.Product;
@@ -206,6 +206,12 @@ public class InventoryServiceImpl implements InventoryService {
         return getLowStockAlerts(branchId, p).getContent();
     }
 
+    @Override
+    public java.util.List<BranchDto> getAllBranches() {
+        List<Branch> branches = branchRepository.findAll();
+        return branches.stream().map(b -> new BranchDto(b.getId(), b.getName())).collect(Collectors.toList());
+    }
+
     private ProductCatalogItemDto toProductCatalogDto(Inventory inv) {
         Product p = inv.getProduct();
         ProductCatalogItemDto dto = new ProductCatalogItemDto();
@@ -231,4 +237,3 @@ public class InventoryServiceImpl implements InventoryService {
         return dto;
     }
 }
-
