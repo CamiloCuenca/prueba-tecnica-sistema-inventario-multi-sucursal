@@ -11,7 +11,7 @@ import java.util.UUID;
 @Setter
 public class PurchaseCreateDto {
     private UUID branchId;
-    private UUID supplierId;
+    private UUID provider_id;
     private List<PurchaseDetailCreateDto> items;
     private String paymentTerms;
     private Instant expectedDeliveryDate;

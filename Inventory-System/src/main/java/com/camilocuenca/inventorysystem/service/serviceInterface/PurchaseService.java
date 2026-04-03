@@ -40,4 +40,6 @@ public interface PurchaseService {
      * Lista paginada de compras (resumen) por sucursal o global (branchId nullable). Retorna `Page<PurchaseSummaryDto>`.
      */
     Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, Pageable pageable);
+
+
 }
