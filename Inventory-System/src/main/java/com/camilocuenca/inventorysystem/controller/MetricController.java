@@ -74,41 +74,103 @@ public class MetricController {
 
     /**
      * Endpoint que devuelve el comportamiento del inventario filtrado por la sucursal del usuario.
-     * No permite pasar branchId por query para respetar la autonomía operativa (si se necesita, solo admin podrá).
+     * Ahora: si el usuario tiene ROLE_ADMIN puede pasar opcionalmente `branchId` como query param.
+     * Usuarios no-admin deben usar el branchId presente en su token (no pueden consultar otras sucursales).
      */
     @GetMapping("/inventory-behavior")
-    public ResponseEntity<InventoryBehaviorDto> inventoryBehavior() {
+    public ResponseEntity<InventoryBehaviorDto> inventoryBehavior(@RequestParam(required = false) UUID branchId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        UUID branchId = null;
-        if (auth != null && auth.getDetails() != null) {
+        UUID resolvedBranchId = branchId;
+
+        // Determinar si el usuario es ADMIN
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+        // Si no se pasó branchId por query, intentar obtenerlo desde el token (auth.details)
+        if (resolvedBranchId == null && auth != null && auth.getDetails() != null) {
             try {
-                branchId = UUID.fromString(String.valueOf(auth.getDetails()));
+                resolvedBranchId = UUID.fromString(String.valueOf(auth.getDetails()));
             } catch (IllegalArgumentException ignored) {
             }
         }
-        if (branchId == null) {
+
+        // Si sigue siendo nulo
+        if (resolvedBranchId == null) {
+            if (isAdmin) {
+                // ADMIN sin branchId -> vista global (branchId == null)
+                InventoryBehaviorDto resp = metricService.getInventoryBehavior(null);
+                return ResponseEntity.ok(resp);
+            }
+            // usuario no-admin sin branch asociado -> bad request
             return ResponseEntity.badRequest().build();
         }
-        InventoryBehaviorDto resp = metricService.getInventoryBehavior(branchId);
+
+        // Si el usuario no es ADMIN, no permitir que consulte una sucursal distinta a la suya
+        if (!isAdmin && branchId != null) {
+            // usuario no-admin intentó especificar branchId distinto: verificar que coincida con su detalle
+            if (auth != null && auth.getDetails() != null) {
+                try {
+                    UUID userBranch = UUID.fromString(String.valueOf(auth.getDetails()));
+                    if (!userBranch.equals(branchId)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        InventoryBehaviorDto resp = metricService.getInventoryBehavior(resolvedBranchId);
         return ResponseEntity.ok(resp);
     }
 
     /**
      * Retorna el impacto de transfers activos hacia la sucursal del usuario (stock en tránsito).
+     * Sólo accesible para ADMIN y MANAGER. ADMIN puede pasar opcionalmente ?branchId=, MANAGER sólo su propia sucursal.
      */
     @GetMapping("/active-transfers-impact")
-    public ResponseEntity<List<TransferImpactDto>> activeTransfersImpact() {
+    public ResponseEntity<List<TransferImpactDto>> activeTransfersImpact(@RequestParam(required = false) UUID branchId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        UUID branchId = null;
-        if (auth != null && auth.getDetails() != null) {
+
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        boolean isManager = auth != null && auth.getAuthorities().stream().anyMatch(a -> "ROLE_MANAGER".equals(a.getAuthority()));
+
+        if (!isAdmin && !isManager) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        UUID resolvedBranchId = branchId;
+        if (resolvedBranchId == null && auth != null && auth.getDetails() != null) {
             try {
-                branchId = UUID.fromString(String.valueOf(auth.getDetails()));
+                resolvedBranchId = UUID.fromString(String.valueOf(auth.getDetails()));
             } catch (IllegalArgumentException ignored) {
             }
         }
-        if (branchId == null) return ResponseEntity.badRequest().build();
 
-        List<TransferImpactDto> resp = metricService.getActiveTransfersImpact(branchId);
+        // If still null: ADMIN must provide branchId explicitly; MANAGER can't proceed without branch in token
+        if (resolvedBranchId == null) {
+            if (isAdmin) {
+                return ResponseEntity.badRequest().body(null);
+            } else {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        // If manager passed a branchId param, ensure it matches their branch
+        if (isManager && branchId != null) {
+            if (auth == null || auth.getDetails() == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            try {
+                UUID userBranch = UUID.fromString(String.valueOf(auth.getDetails()));
+                if (!userBranch.equals(branchId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+            } catch (IllegalArgumentException ignored) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        List<TransferImpactDto> resp = metricService.getActiveTransfersImpact(resolvedBranchId);
         return ResponseEntity.ok(resp);
     }
 
