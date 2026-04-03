@@ -62,9 +62,9 @@ public class PurchaseServiceImpl implements PurchaseService {
         purchase.getBranch().setId(dto.getBranchId());
         purchase.setUser(user);
         // Resolver provider si se pasó supplierId, si no, almacenar notas libres
-        if (dto.getSupplierId() != null) {
-            com.camilocuenca.inventorysystem.model.Provider prov = providerRepository.findById(dto.getSupplierId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider not found: " + dto.getSupplierId()));
+        if (dto.getProvider_id() != null) {
+            com.camilocuenca.inventorysystem.model.Provider prov = providerRepository.findById(dto.getProvider_id())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider not found: " + dto.getProvider_id()));
             purchase.setProvider(prov);
         } else {
             purchase.setSupplierNotes(dto.getNotes());
