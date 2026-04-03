@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -62,9 +61,9 @@ public class PurchaseServiceImpl implements PurchaseService {
         purchase.getBranch().setId(dto.getBranchId());
         purchase.setUser(user);
         // Resolver provider si se pasó supplierId, si no, almacenar notas libres
-        if (dto.getProvider_id() != null) {
-            com.camilocuenca.inventorysystem.model.Provider prov = providerRepository.findById(dto.getProvider_id())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider not found: " + dto.getProvider_id()));
+        if (dto.getProviderId() != null) {
+            com.camilocuenca.inventorysystem.model.Provider prov = providerRepository.findById(dto.getProviderId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider not found: " + dto.getProviderId()));
             purchase.setProvider(prov);
         } else {
             purchase.setSupplierNotes(dto.getNotes());
