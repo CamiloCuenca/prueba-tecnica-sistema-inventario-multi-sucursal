@@ -211,6 +211,12 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     public Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, Pageable pageable) {
+        // Mantener compatibilidad: delegar a la sobrecarga con status = null
+        return listPurchases(requesterUserId, branchId, null, pageable);
+    }
+
+    @Override
+    public Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, String status, Pageable pageable) {
         if (requesterUserId == null) throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Authentication required");
 
         com.camilocuenca.inventorysystem.model.User user = userRepository.findById(requesterUserId).orElse(null);
@@ -222,7 +228,25 @@ public class PurchaseServiceImpl implements PurchaseService {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Only admin/manager can list all branches");
         }
 
-        org.springframework.data.domain.Page<com.camilocuenca.inventorysystem.model.Purchase> page = purchaseRepository.findByBranchId(branchId, pageable);
+        Page<com.camilocuenca.inventorysystem.model.Purchase> page;
+        if (status == null || status.isBlank()) {
+            // sin filtro por estado
+            page = purchaseRepository.findByBranchId(branchId, pageable);
+        } else {
+            PurchaseStatus st;
+            try {
+                st = PurchaseStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + status);
+            }
+
+            if (branchId == null) {
+                page = purchaseRepository.findByStatus(st, pageable);
+            } else {
+                page = purchaseRepository.findByBranchIdAndStatus(branchId, st, pageable);
+            }
+        }
+
         return page.map(this::toSummary);
     }
 

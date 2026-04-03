@@ -41,5 +41,10 @@ public interface PurchaseService {
      */
     Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, Pageable pageable);
 
+    /**
+     * Lista paginada de compras con posibilidad de filtrar por estado (status can be null).
+     */
+    Page<PurchaseSummaryDto> listPurchases(UUID requesterUserId, UUID branchId, String status, Pageable pageable);
+
 
 }

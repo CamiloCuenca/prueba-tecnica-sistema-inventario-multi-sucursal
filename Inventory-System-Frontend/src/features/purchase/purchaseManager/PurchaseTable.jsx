@@ -7,15 +7,33 @@ import { getPurchaseById } from '../purchaseApi';
 
 export default function PurchaseTable() {
   const [currentPage, setCurrentPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
-  const { purchases, loading, error, pageInfo } = usePurchases(currentPage, 20);
+  const { purchases, loading, error, pageInfo } = usePurchases({
+    page: currentPage,
+    size: 20,
+    status: statusFilter,
+  });
+
+  const statusOptions = [
+    { value: '', label: 'Todos los estados' },
+    { value: 'PENDING', label: 'Pendiente' },
+    { value: 'PARTIALLY_RECEIVED', label: 'Parcialmente recibido' },
+    { value: 'RECEIVED', label: 'Recibido' },
+    { value: 'CANCELLED', label: 'Cancelado' },
+  ];
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
+  };
+
+  const handleStatusChange = (event) => {
+    setStatusFilter(event.target.value);
+    setCurrentPage(0);
   };
 
   const handleShowDetails = async ({ purchaseId }) => {
@@ -38,7 +56,7 @@ export default function PurchaseTable() {
 
   const transformedData = purchases.map((purchase) => ({
     id: purchase.id || '-',
-    supplier: purchase.supplier || 'Sin proveedor',
+    supplier: purchase.supplier || purchase.provider_id || purchase.providerId || 'Sin proveedor',
     status: purchase.status?.name || 'Desconocido',
     subtotal: `S/. ${Number(purchase.subtotal || 0).toFixed(2)}`,
     tax: `S/. ${Number(purchase.tax || 0).toFixed(2)}`,
@@ -55,16 +73,10 @@ export default function PurchaseTable() {
     setDetailLoading(false);
   };
 
-  if (loading && purchases.length === 0) {
-    return <div className="w-full text-center py-8 text-gray-500">Cargando compras...</div>;
-  }
-
-  if (error) {
-    return <div className="w-full text-center py-8 text-red-500">{error}</div>;
-  }
-
   return (
     <div className="w-full space-y-6">
+      
+
       {purchases.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded shadow">
@@ -84,8 +96,30 @@ export default function PurchaseTable() {
         </div>
       )}
 
+
+      <div className="bg-white p-4 rounded shadow flex flex-col sm:flex-row sm:items-end gap-4">
+        <div className="w-full sm:w-72">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por estado</label>
+          <select
+            value={statusFilter}
+            onChange={handleStatusChange}
+            className="w-full border rounded p-2 focus:outline-none focus:ring-2"
+          >
+            {statusOptions.map((option) => (
+              <option key={option.value || 'ALL'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="bg-white rounded shadow overflow-hidden">
-        {purchases.length > 0 ? (
+        {loading && purchases.length === 0 ? (
+          <div className="w-full text-center py-8 text-gray-500">Cargando compras...</div>
+        ) : error ? (
+          <div className="w-full text-center py-8 text-red-500">{error}</div>
+        ) : purchases.length > 0 ? (
           <>
             <Table
               data={transformedData}
@@ -95,10 +129,11 @@ export default function PurchaseTable() {
             />
 
             <TablePaginator
-              currentPage={pageInfo.currentPage}
+              page={pageInfo.currentPage}
               totalPages={pageInfo.totalPages}
               onPageChange={handlePageChange}
-              isLoading={loading}
+              isFirst={pageInfo.isFirst}
+              isLast={pageInfo.isLast}
             />
           </>
         ) : (
@@ -124,7 +159,9 @@ export default function PurchaseTable() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">Proveedor</p>
-                <p className="font-medium text-gray-900">{selectedPurchase.supplier || 'Sin proveedor'}</p>
+                <p className="font-medium text-gray-900">
+                  {selectedPurchase.supplier || selectedPurchase.provider_id || selectedPurchase.providerId || 'Sin proveedor'}
+                </p>
               </div>
               <div>
                 <p className="text-gray-500">Estado</p>

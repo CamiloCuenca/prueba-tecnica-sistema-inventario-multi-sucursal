@@ -51,25 +51,27 @@ public class PurchaseController {
     @GetMapping
     public ResponseEntity<Page<PurchaseSummaryDto>> listPurchases(Authentication authentication,
                                                                  @RequestParam(required = false) UUID branchId,
+                                                                 @RequestParam(required = false) String status,
                                                                  Pageable pageable) {
         UUID userId = AuthUtil.getUserId(authentication);
-        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, pageable);
+        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, status, pageable);
         return ResponseEntity.ok(page);
     }
 
     @GetMapping("/branch/{branchId}")
     public ResponseEntity<Page<PurchaseSummaryDto>> getPurchasesByBranch(Authentication authentication,
                                                                          @PathVariable UUID branchId,
+                                                                         @RequestParam(required = false) String status,
                                                                          Pageable pageable) {
         UUID userId = AuthUtil.getUserId(authentication);
-        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, pageable);
+        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, status, pageable);
         return ResponseEntity.ok(page);
     }
 
     @GetMapping("/all")
-    public ResponseEntity<Page<PurchaseSummaryDto>> getAllPurchases(Authentication authentication, Pageable pageable) {
+    public ResponseEntity<Page<PurchaseSummaryDto>> getAllPurchases(Authentication authentication, @RequestParam(required = false) String status, Pageable pageable) {
         UUID userId = AuthUtil.getUserId(authentication);
-        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, null, pageable);
+        Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, null, status, pageable);
         return ResponseEntity.ok(page);
     }
 }

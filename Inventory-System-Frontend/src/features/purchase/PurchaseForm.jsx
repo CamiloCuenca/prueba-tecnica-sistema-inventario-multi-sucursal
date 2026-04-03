@@ -33,8 +33,9 @@ const formatExpectedDeliveryDate = (value) => {
     return '';
   }
 
-  const datePart = String(value).slice(0, 10);
-  return `${datePart}T00:00:00Z`;
+  const [datePart, timePart = '00:00'] = String(value).split('T');
+  const normalizedTime = `${timePart.slice(0, 5)}:00`;
+  return `${datePart}T${normalizedTime}Z`;
 };
 
 export default function PurchaseForm() {
@@ -61,7 +62,7 @@ export default function PurchaseForm() {
 
   // Estado general del formulario
   const [form, setForm] = useState({
-    provider_id: '',
+    providerId: '',
     paymentTerms: '30D',
     expectedDeliveryDate: '',
     notes: '',
@@ -100,10 +101,10 @@ export default function PurchaseForm() {
       setAlert("");
       setErrorProducts(null);
       
-      if (form.provider_id) {
+      if (form.providerId) {
         setLoadingProducts(true);
         try {
-          const data = await getProviderProducts(form.provider_id);
+          const data = await getProviderProducts(form.providerId);
           setAvailableProducts(normalizeListResponse(data));
         } catch (error) {
           setErrorProducts(error?.message || 'Error al cargar productos del proveedor');
@@ -118,7 +119,7 @@ export default function PurchaseForm() {
     };
 
     fetchProducts();
-  }, [form.provider_id]);
+  }, [form.providerId]);
 
   // Maneja cambios en campos principales
   const handleChange = (e) => {
@@ -165,7 +166,7 @@ export default function PurchaseForm() {
       setAlert("No se pudo obtener la sucursal del token. Por favor, inicie sesión nuevamente.");
       return false;
     }
-    if (!form.provider_id) {
+    if (!form.providerId) {
       setAlert("Debe seleccionar un proveedor");
       return false;
     }
@@ -197,7 +198,7 @@ export default function PurchaseForm() {
     // Estructura del DTO según especificación
     const purchaseData = {
       branchId: branchId,
-      provider_id: form.provider_id,
+      providerId: form.providerId,
       items: items.map(item => ({
         productId: item.productId,
         quantity: parseFloat(item.quantity),
@@ -216,7 +217,7 @@ export default function PurchaseForm() {
       setSuccess(true);
       // Limpiar formulario
       setForm({
-        provider_id: '',
+        providerId: '',
         paymentTerms: '30D',
         expectedDeliveryDate: '',
         notes: '',
@@ -261,8 +262,8 @@ export default function PurchaseForm() {
               <div className="p-2 text-gray-600 italic">Cargando proveedores...</div>
             ) : (
               <select
-                name="provider_id"
-                value={form.provider_id}
+                name="providerId"
+                value={form.providerId}
                 onChange={handleChange}
                 className="w-full border rounded p-2 focus:outline-none focus:ring-2"
               >
@@ -277,7 +278,7 @@ export default function PurchaseForm() {
           </div>
 
           {/* Productos del Proveedor */}
-          {form.provider_id && (
+          {form.providerId && (
             <div className="bg-blue-50 border border-blue-200 rounded p-4">
               <p className="font-semibold text-blue-900 mb-2">Productos disponibles del proveedor:</p>
               {loadingProducts ? (

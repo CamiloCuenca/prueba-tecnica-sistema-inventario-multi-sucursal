@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getPurchases } from './purchaseApi';
 import { getBranchIdFromToken } from '../../utils/tokenUtils';
 
-export const usePurchases = (page = 0, size = 20) => {
+export const usePurchases = ({ page = 0, size = 20, status = '' } = {}) => {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -25,11 +25,17 @@ export const usePurchases = (page = 0, size = 20) => {
         throw new Error('No se pudo obtener el ID de la sucursal del token');
       }
 
-      const data = await getPurchases({
+      const params = {
         branchId,
         page: pageNum,
         size,
-      });
+      };
+
+      if (status) {
+        params.status = status;
+      }
+
+      const data = await getPurchases(params);
 
       // Normalizar respuesta paginada
       setPurchases(data?.content || []);
@@ -52,7 +58,7 @@ export const usePurchases = (page = 0, size = 20) => {
 
   useEffect(() => {
     fetchPurchases(page);
-  }, [page, branchId]);
+  }, [page, size, status, branchId]);
 
   const goToPage = (pageNumber) => {
     fetchPurchases(pageNumber);
