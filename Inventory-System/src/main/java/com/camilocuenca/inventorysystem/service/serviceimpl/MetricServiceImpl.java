@@ -71,21 +71,37 @@ public class MetricServiceImpl implements metricService {
      * Calcula el comportamiento del inventario para la sucursal indicada.
      * - rotationIndex = total_sold / current_stock (si current_stock == 0 -> usar total_sold)
      * - top 5 productos de alta demanda y top 5 de baja demanda (por total_sold)
+     *
+     * Si branchId == null se retorna una vista agregada global (útil para ADMIN).
      */
     @Override
     public InventoryBehaviorDto getInventoryBehavior(UUID branchId) {
-        // Usamos parámetros posicionales para evitar problemas con named params en native queries
-        String sql = "SELECT p.id as product_id, p.sku as sku, p.name as product_name, " +
-                "COALESCE(SUM(sd.quantity),0) as total_sold, COALESCE(i.quantity,0) as current_stock " +
-                "FROM product p " +
-                "LEFT JOIN sale_detail sd ON sd.product_id = p.id " +
-                "LEFT JOIN sale s ON s.id = sd.sale_id AND s.branch_id = ?1 " +
-                "LEFT JOIN inventory i ON i.product_id = p.id AND i.branch_id = ?2 " +
-                "GROUP BY p.id, p.sku, p.name, i.quantity";
+        String sql;
+        Query q;
 
-        Query q = em.createNativeQuery(sql);
-        q.setParameter(1, branchId);
-        q.setParameter(2, branchId);
+        if (branchId == null) {
+            // Vista global: sumar ventas y stock en todas las sucursales
+            sql = "SELECT p.id as product_id, p.sku as sku, p.name as product_name, " +
+                    "COALESCE(SUM(sd.quantity),0) as total_sold, COALESCE(SUM(i.quantity),0) as current_stock " +
+                    "FROM product p " +
+                    "LEFT JOIN sale_detail sd ON sd.product_id = p.id " +
+                    "LEFT JOIN sale s ON s.id = sd.sale_id " +
+                    "LEFT JOIN inventory i ON i.product_id = p.id " +
+                    "GROUP BY p.id, p.sku, p.name";
+            q = em.createNativeQuery(sql);
+        } else {
+            // Vista por sucursal: filtrar ventas e inventario por branch
+            sql = "SELECT p.id as product_id, p.sku as sku, p.name as product_name, " +
+                    "COALESCE(SUM(sd.quantity),0) as total_sold, COALESCE(SUM(i.quantity),0) as current_stock " +
+                    "FROM product p " +
+                    "LEFT JOIN sale_detail sd ON sd.product_id = p.id " +
+                    "LEFT JOIN sale s ON s.id = sd.sale_id AND s.branch_id = ?1 " +
+                    "LEFT JOIN inventory i ON i.product_id = p.id AND i.branch_id = ?2 " +
+                    "GROUP BY p.id, p.sku, p.name";
+            q = em.createNativeQuery(sql);
+            q.setParameter(1, branchId);
+            q.setParameter(2, branchId);
+        }
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = q.getResultList();
@@ -96,8 +112,23 @@ public class MetricServiceImpl implements metricService {
             dto.setProductId((UUID) r[0]);
             dto.setSku((String) r[1]);
             dto.setProductName((String) r[2]);
-            BigDecimal totalSold = r[3] != null ? (BigDecimal) r[3] : BigDecimal.ZERO;
-            BigDecimal currentStock = r[4] != null ? (BigDecimal) r[4] : BigDecimal.ZERO;
+
+            BigDecimal totalSold = BigDecimal.ZERO;
+            BigDecimal currentStock = BigDecimal.ZERO;
+
+            // Manejar distintos tipos retornados por JDBC (BigDecimal, Long, Integer)
+            if (r[3] instanceof BigDecimal) {
+                totalSold = (BigDecimal) r[3];
+            } else if (r[3] instanceof Number) {
+                totalSold = BigDecimal.valueOf(((Number) r[3]).doubleValue());
+            }
+
+            if (r[4] instanceof BigDecimal) {
+                currentStock = (BigDecimal) r[4];
+            } else if (r[4] instanceof Number) {
+                currentStock = BigDecimal.valueOf(((Number) r[4]).doubleValue());
+            }
+
             dto.setTotalSold(totalSold);
             dto.setCurrentStock(currentStock);
             double rotation;
