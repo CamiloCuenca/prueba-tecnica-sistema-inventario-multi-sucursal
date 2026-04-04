@@ -1,15 +1,10 @@
-
-
-import { TransferRequestForm } from '../features/transfer';
-
+import { TransferTabs } from '../features/transfer';
 
 export default function TransfersPage() {
   return (
-    <>
-    <div className="max-w-4xl mx-auto">
-        <TransferRequestForm />
+    <div className="max-w-7xl mx-auto">
+        <TransferTabs />
       </div>
-    </>
   );
 }
 

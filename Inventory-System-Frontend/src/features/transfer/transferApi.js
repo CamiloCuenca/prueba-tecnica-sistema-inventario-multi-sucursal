@@ -51,3 +51,52 @@ export const getAllBranches = async () => {
     throw error.response?.data || error.message;
   }
 };
+
+export const getIncomingTransfers = async ({ page = 0, size = 10, sort = [] } = {}) => {
+  try {
+    const response = await api.get('/api/transfers/incoming', {
+      params: { page, size, sort },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const getOutgoingTransfers = async ({ page = 0, size = 10, sort = [] } = {}) => {
+  try {
+    const response = await api.get('/api/transfers/outgoing', {
+      params: { page, size, sort },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const getTransferById = async (id) => {
+  try {
+    const response = await api.get(`/api/transfers/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const prepareTransfer = async (id, payload) => {
+  try {
+    const response = await api.post(`/api/transfers/${id}/prepare`, payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const dispatchTransfer = async (id, payload) => {
+  try {
+    const response = await api.post(`/api/transfers/${id}/dispatch`, payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};

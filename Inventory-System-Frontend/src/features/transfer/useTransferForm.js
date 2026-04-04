@@ -2,6 +2,15 @@ import { useState, useEffect } from 'react';
 import { requestTransfer, getBranchInventoryForTransfer, getAllBranches } from './transferApi';
 import { getBranchIdFromToken } from '../../utils/tokenUtils';
 
+const normalizeBranches = (rows = []) => {
+  return rows
+    .map((row) => ({
+      id: row?.id || row?.branchId || row?.branch_id || row?.uuid || '',
+      name: row?.name || row?.branchName || row?.branch_name || 'Sucursal sin nombre',
+    }))
+    .filter((branch) => branch.id);
+};
+
 /**
  * Hook para manejar la lógica del formulario de solicitud de transferencia
  * Gestiona estado de sucursales, inventario, validaciones y envío de solicitud
@@ -34,7 +43,7 @@ export const useTransferForm = () => {
       setError(null);
       try {
         const data = await getAllBranches();
-        setBranches(Array.isArray(data) ? data : []);
+        setBranches(normalizeBranches(Array.isArray(data) ? data : []));
       } catch (err) {
         setError(getErrorMessage(err, 'Error al cargar sucursales'));
         setBranches([]);
@@ -71,6 +80,12 @@ export const useTransferForm = () => {
 
     loadInventory();
   }, [originBranchId]);
+
+  useEffect(() => {
+    if (originBranchId && destinationBranchId && originBranchId === destinationBranchId) {
+      setDestinationBranchId('');
+    }
+  }, [originBranchId, destinationBranchId]);
 
   const getErrorMessage = (err, fallbackMessage) => {
     if (typeof err === 'string') return err;
