@@ -21,33 +21,16 @@ public class TransferStatusAttributeConverter implements AttributeConverter<Tran
     public TransferStatus convertToEntityAttribute(String dbData) {
         if (dbData == null) return null;
         String v = dbData.trim().toUpperCase();
-        switch (v) {
-            case "PENDING":
-                return TransferStatus.PENDING;
-            case "PREPARING":
-            case "PREPARANDO":
-                return TransferStatus.PREPARING;
-            case "SHIPPED":
-                return TransferStatus.SHIPPED;
-            case "PARTIALLY_SHIPPED":
-            case "PARTIALLY-SHIPPED":
-                return TransferStatus.PARTIALLY_SHIPPED;
-            case "EN_TRANSITO":
-            case "EN_TRANSIT":
-            case "IN_TRANSIT":
-                return TransferStatus.IN_TRANSIT;
-            case "PARTIALLY_RECEIVED":
-            case "PARCIALMENTE_RECIBIDO":
-                return TransferStatus.PARTIALLY_RECEIVED;
-            case "RECEIVED":
-            case "RECIBIDO":
-                return TransferStatus.RECEIVED;
-            case "CANCELLED":
-            case "CANCELADO":
-                return TransferStatus.CANCELLED;
-            default:
-                // Fallback conservador: tratar como PENDING y loggear si es necesario
-                return TransferStatus.PENDING;
-        }
+        return switch (v) {
+            case "PENDING" -> TransferStatus.PENDING;
+            case "PREPARING", "PREPARANDO" -> TransferStatus.PREPARING;
+            case "SHIPPED" -> TransferStatus.SHIPPED;
+            case "PARTIALLY_SHIPPED", "PARTIALLY-SHIPPED" -> TransferStatus.PARTIALLY_SHIPPED;
+            case "EN_TRANSITO", "EN_TRANSIT", "IN_TRANSIT" -> TransferStatus.IN_TRANSIT;
+            case "PARTIALLY_RECEIVED", "PARCIALMENTE_RECIBIDO" -> TransferStatus.PARTIALLY_RECEIVED;
+            case "RECEIVED", "RECIBIDO" -> TransferStatus.RECEIVED;
+            case "CANCELLED", "CANCELADO" -> TransferStatus.CANCELLED;
+            default -> TransferStatus.PENDING;
+        };
     }
 }

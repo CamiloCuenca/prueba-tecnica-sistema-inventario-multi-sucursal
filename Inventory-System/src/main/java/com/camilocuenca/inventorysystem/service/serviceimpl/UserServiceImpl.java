@@ -14,9 +14,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.time.Instant;
 
 @Service
 @Transactional
@@ -96,7 +101,51 @@ public class UserServiceImpl implements UserService {
             user.setBranch(branch);
         }
 
+        // Registrar fecha de creación
+        user.setCreatedAt(Instant.now());
+
         // Guardar y devolver
         return userRepository.save(user);
+    }
+
+    @Override
+    public Page<com.camilocuenca.inventorysystem.dto.user.UserResponseDTO> listUsers(Pageable pageable) {
+        Page<User> page = userRepository.findAll(pageable);
+        var dtos = page.stream().map(u -> new com.camilocuenca.inventorysystem.dto.user.UserResponseDTO(
+                u.getId(), u.getName(), u.getEmail(), u.getRole() != null ? u.getRole().name() : null,
+                u.getBranch() != null ? u.getBranch().getId() : null, u.getCreatedAt()
+        )).toList();
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
+    @Override
+    public com.camilocuenca.inventorysystem.dto.user.UserResponseDTO getUserById(UUID id) throws Exception {
+        User u = userRepository.findById(id).orElseThrow(() -> new Exception("Usuario no encontrado"));
+        return new com.camilocuenca.inventorysystem.dto.user.UserResponseDTO(u.getId(), u.getName(), u.getEmail(), u.getRole() != null ? u.getRole().name() : null, u.getBranch() != null ? u.getBranch().getId() : null, u.getCreatedAt());
+    }
+
+    @Override
+    public com.camilocuenca.inventorysystem.dto.user.UserResponseDTO updateUser(com.camilocuenca.inventorysystem.dto.user.UserUpdateDTO dto) throws Exception {
+        User u = userRepository.findById(dto.id()).orElseThrow(() -> new Exception("Usuario no encontrado"));
+        u.setName(dto.name());
+        if (!u.getEmail().equals(dto.email())) {
+            if (userRepository.existsByEmail(dto.email())) throw new Exception("El email ya está registrado.");
+            u.setEmail(dto.email());
+        }
+        if (dto.role() != null) {
+            try { u.setRole(com.camilocuenca.inventorysystem.Enums.Role.valueOf(dto.role())); } catch (IllegalArgumentException e) { throw new Exception("Role inválido. Valores permitidos: ADMIN, MANAGER, OPERATOR"); }
+        }
+        if (dto.branchId() != null) {
+            var b = branchRepository.findById(dto.branchId()).orElseThrow(() -> new Exception("Sucursal no encontrada."));
+            u.setBranch(b);
+        }
+        User saved = userRepository.save(u);
+        return new com.camilocuenca.inventorysystem.dto.user.UserResponseDTO(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole() != null ? saved.getRole().name() : null, saved.getBranch() != null ? saved.getBranch().getId() : null, saved.getCreatedAt());
+    }
+
+    @Override
+    public void deleteUser(UUID id) throws Exception {
+        User u = userRepository.findById(id).orElseThrow(() -> new Exception("Usuario no encontrado"));
+        userRepository.delete(u);
     }
 }

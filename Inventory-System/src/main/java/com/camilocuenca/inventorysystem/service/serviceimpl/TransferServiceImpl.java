@@ -36,9 +36,6 @@ public class TransferServiceImpl implements TransferService {
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final TransferAlertRepository transferAlertRepository;
 
-    // Estados considerados "activos" en el ciclo de transferencia
-    private static final List<TransferStatus> ACTIVE_STATES = Arrays.asList(TransferStatus.PENDING, TransferStatus.PREPARING, TransferStatus.SHIPPED, TransferStatus.PARTIALLY_SHIPPED, TransferStatus.IN_TRANSIT, TransferStatus.PARTIALLY_RECEIVED);
-
     @Autowired
     public TransferServiceImpl(TransferRepository transferRepository,
                                TransferDetailRepository transferDetailRepository,
@@ -74,7 +71,7 @@ public class TransferServiceImpl implements TransferService {
      *
      * @param req DTO con la información de la solicitud (originBranchId, destinationBranchId, items)
      * @param requesterUserId UUID del usuario que realiza la solicitud (resuelto desde el JWT)
-     * @return
+     * @return TransferResponseDto con la transferencia creada y sus items (sin detalles financieros)
      */
     @Override
     @Transactional
@@ -189,7 +186,7 @@ public class TransferServiceImpl implements TransferService {
      * @param transferId id de la transferencia a preparar
      * @param body DTO con las cantidades confirmadas por producto
      * @param requesterUserId UUID del usuario que confirma (resuelto desde JWT)
-     * @return
+     * @return TransferResponseDto con el estado actualizado después de la preparación
      */
     @Override
     @Transactional
@@ -525,7 +522,6 @@ public class TransferServiceImpl implements TransferService {
 
         // Determinar estado global considerando todas las líneas del transfer
         boolean anyReceived = false;
-        boolean anyMissingOverall = false;
         boolean allFullyReceived = true;
         for (TransferDetail td : details) {
             java.math.BigDecimal conf = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
@@ -534,7 +530,6 @@ public class TransferServiceImpl implements TransferService {
             if (rec.compareTo(java.math.BigDecimal.ZERO) > 0) anyReceived = true;
             if (conf == null) conf = java.math.BigDecimal.ZERO;
             if (rec.compareTo(conf) < 0) {
-                anyMissingOverall = true;
                 allFullyReceived = false;
             }
         }
@@ -568,7 +563,7 @@ public class TransferServiceImpl implements TransferService {
     }
 
     @Override
-    public Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable) {
+    public Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, com.camilocuenca.inventorysystem.Enums.TransferStatus status, Pageable pageable) {
         User requester = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario solicitante no encontrado"));
 
@@ -582,7 +577,13 @@ public class TransferServiceImpl implements TransferService {
             targetBranchId = requester.getBranch().getId();
         }
 
-        Page<Transfer> page = transferRepository.findActiveByDestinationBranchId(targetBranchId, ACTIVE_STATES, pageable);
+        Page<Transfer> page;
+        if (status == null) {
+            // si no se provee estado, retornar todas las transferencias de la sucursal
+            page = transferRepository.findByDestinationBranchId(targetBranchId, pageable);
+        } else {
+            page = transferRepository.findByDestinationBranchIdAndStatus(targetBranchId, status, pageable);
+        }
         List<TransferListDto> dtos = page.stream().map(t -> {
             TransferListDto dto = new TransferListDto();
             dto.setId(t.getId());
@@ -604,7 +605,7 @@ public class TransferServiceImpl implements TransferService {
     }
 
     @Override
-    public Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable) {
+    public Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, com.camilocuenca.inventorysystem.Enums.TransferStatus status, Pageable pageable) {
         User requester = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario solicitante no encontrado"));
 
@@ -618,7 +619,12 @@ public class TransferServiceImpl implements TransferService {
             targetBranchId = requester.getBranch().getId();
         }
 
-        Page<Transfer> page = transferRepository.findActiveByOriginBranchId(targetBranchId, ACTIVE_STATES, pageable);
+        Page<Transfer> page;
+        if (status == null) {
+            page = transferRepository.findByOriginBranchId(targetBranchId, pageable);
+        } else {
+            page = transferRepository.findByOriginBranchIdAndStatus(targetBranchId, status, pageable);
+        }
         List<TransferListDto> dtos = page.stream().map(t -> {
             TransferListDto dto = new TransferListDto();
             dto.setId(t.getId());
@@ -639,37 +645,10 @@ public class TransferServiceImpl implements TransferService {
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
-    private double haversineKm(Double lat1, Double lon1, Double lat2, Double lon2) {
-        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return -1d;
-        final int R = 6371; // Radius of the earth in km
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    private int estimateMinutesFromDistanceKm(double km, com.camilocuenca.inventorysystem.Enums.RoutePriority priority) {
-        // Velocidades media estimadas por prioridad (km/h)
-        double speedKmh = 50; // default
-        if (priority == null) priority = com.camilocuenca.inventorysystem.Enums.RoutePriority.MEDIUM;
-        switch (priority) {
-            case URGENT:
-                speedKmh = 80; break;
-            case HIGH:
-                speedKmh = 60; break;
-            case MEDIUM:
-                speedKmh = 45; break;
-            case LOW:
-                speedKmh = 30; break;
-        }
-        if (km < 0) return -1;
-        double hours = km / speedKmh;
-        return (int) Math.max(1, Math.round(hours * 60));
-    }
-
+    /**
+     * Detalle de la transferencia para la sucursal origen (manager).
+     * Se permite ver el detalle completo incluyendo precios y márgenes.
+     */
     @Override
     public TransferResponseDto getTransferDetail(UUID requesterUserId, UUID transferId) {
         Transfer transfer = transferRepository.findById(transferId)

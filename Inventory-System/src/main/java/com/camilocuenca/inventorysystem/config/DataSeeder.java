@@ -200,7 +200,7 @@ public class DataSeeder {
             List<InventoryTransaction> saleTransactions = new ArrayList<>();
 
             LocalDate now = LocalDate.now();
-            LocalDate currentMonth = now;
+            LocalDate currentMonth = now; // variable mantenida por claridad; puede eliminarse si se desea
             LocalDate lastMonth = now.minusMonths(1);
             LocalDate prevMonth = now.minusMonths(2);
 
