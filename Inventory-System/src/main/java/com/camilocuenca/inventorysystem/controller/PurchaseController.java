@@ -25,6 +25,12 @@ public class PurchaseController {
     @Autowired
     private PurchaseService purchaseService;
 
+    /**
+     * Crea una nueva compra. El usuario debe tener permiso para crear compras en la sucursal especificada.
+     * @param authentication
+     * @param dto
+     * @return
+     */
     @PostMapping
     public ResponseEntity<PurchaseResponseDto> createPurchase(Authentication authentication, @RequestBody PurchaseCreateDto dto) {
         UUID userId = AuthUtil.getUserId(authentication);
@@ -34,6 +40,12 @@ public class PurchaseController {
         return ResponseEntity.status(201).body(created);
     }
 
+    /**
+     * Obtiene los detalles de una compra específica. El usuario debe tener permiso para ver compras en la sucursal asociada a la compra.
+     * @param authentication
+     * @param id
+     * @return
+     */
     @GetMapping("/{id}")
     public ResponseEntity<PurchaseResponseDto> getPurchase(Authentication authentication, @PathVariable UUID id) {
         UUID userId = AuthUtil.getUserId(authentication);
@@ -41,6 +53,13 @@ public class PurchaseController {
         return ResponseEntity.ok(p);
     }
 
+    /**
+     * Marca una compra como recibida. El usuario debe tener permiso para recibir compras en la sucursal asociada a la compra.
+     * @param authentication
+     * @param id
+     * @param dto
+     * @return
+     */
     @PostMapping("/{id}/receive")
     public ResponseEntity<PurchaseResponseDto> receivePurchase(Authentication authentication, @PathVariable UUID id, @RequestBody PurchaseReceiveDto dto) {
         UUID userId = AuthUtil.getUserId(authentication);
@@ -48,6 +67,14 @@ public class PurchaseController {
         return ResponseEntity.ok(p);
     }
 
+    /**
+     * Lista las compras del usuario autenticado, con opciones de filtrado por sucursal y estado. El usuario solo verá las compras de las sucursales para las que tiene permiso de visualización.
+     * @param authentication
+     * @param branchId
+     * @param status
+     * @param pageable
+     * @return
+     */
     @GetMapping
     public ResponseEntity<Page<PurchaseSummaryDto>> listPurchases(Authentication authentication,
                                                                  @RequestParam(required = false) UUID branchId,
@@ -58,6 +85,14 @@ public class PurchaseController {
         return ResponseEntity.ok(page);
     }
 
+    /**
+     * Lista las compras de una sucursal específica. El usuario solo verá las compras de esta sucursal si tiene permiso de visualización para ella.
+     * @param authentication
+     * @param branchId
+     * @param status
+     * @param pageable
+     * @return
+     */
     @GetMapping("/branch/{branchId}")
     public ResponseEntity<Page<PurchaseSummaryDto>> getPurchasesByBranch(Authentication authentication,
                                                                          @PathVariable UUID branchId,
@@ -67,6 +102,14 @@ public class PurchaseController {
         Page<PurchaseSummaryDto> page = purchaseService.listPurchases(userId, branchId, status, pageable);
         return ResponseEntity.ok(page);
     }
+
+    /**
+     * Lista todas las compras del sistema. Solo los usuarios con permiso de visualización global podrán acceder a esta ruta.
+     * @param authentication
+     * @param status
+     * @param pageable
+     * @return
+     */
 
     @GetMapping("/all")
     public ResponseEntity<Page<PurchaseSummaryDto>> getAllPurchases(Authentication authentication, @RequestParam(required = false) String status, Pageable pageable) {
