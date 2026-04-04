@@ -33,7 +33,5 @@ jobs:
         run: java -version
 
       - name: Build with Maven (skip tests)
-        run: |
-          chmod +x mvnw || true
-          ./mvnw -B -DskipTests package
+        run: mvn -B -DskipTests package
 
