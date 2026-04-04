@@ -1,4 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
+import MenuOpenRoundedIcon from "@mui/icons-material/MenuOpenRounded";
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import InventarioPage from "../pages/InventarioPage";
@@ -6,11 +10,53 @@ import Sidebar from "../components/Sidebar";
 import SalesPage from '../pages/SalesPage';
 import PurchasePage from '../pages/PurchasePage';
 
+function ProtectedRoute({ children }) {
+  const token = sessionStorage.getItem("token");
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
 function MainLayout({ children }) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("token");
+    navigate("/login", { replace: true });
+  };
+
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 bg-gray-50 dark:bg-neutral-950 p-6">{children}</main>
+    <div className="flex min-h-screen bg-gray-50 dark:bg-neutral-950">
+      <Sidebar collapsed={isSidebarCollapsed} />
+      <div className="flex flex-1 min-w-0 flex-col">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/95 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-neutral-700 dark:text-gray-200 dark:hover:bg-neutral-800"
+            aria-label={isSidebarCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          >
+            {isSidebarCollapsed ? <MenuRoundedIcon fontSize="small" /> : <MenuOpenRoundedIcon fontSize="small" />}
+            <span className="hidden sm:inline">{isSidebarCollapsed ? "Expandir" : "Colapsar"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+            aria-label="Cerrar sesión"
+          >
+            <LogoutRoundedIcon fontSize="small" />
+            <span className="hidden sm:inline">Cerrar sesión</span>
+          </button>
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
+      </div>
     </div>
   );
 }
@@ -18,37 +64,48 @@ function MainLayout({ children }) {
 const AppRoutes = () => (
   <Router>
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={sessionStorage.getItem("token") ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+      />
       <Route
         path="/dashboard"
         element={
-          <MainLayout>
-            <DashboardPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <DashboardPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/inventario"
         element={
-          <MainLayout>
-            <InventarioPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <InventarioPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/ventas"
         element={
-          <MainLayout>
-            <SalesPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <SalesPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/compras"
         element={
-          <MainLayout>
-            <PurchasePage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <PurchasePage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
       {/* Redirige la raíz al login */}

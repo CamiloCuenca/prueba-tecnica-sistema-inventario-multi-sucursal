@@ -53,25 +53,33 @@ const baseMenu = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false }) {
   const location = useLocation();
   const role = getRole();
   const menuItems = baseMenu.filter((item) => item.roles.includes(role));
+
   return (
-    <aside className="h-screen w-56 bg-white dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 flex flex-col py-6 px-4">
+    <aside
+      className={`min-h-screen border-r border-gray-200 bg-white py-6 transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-900 ${
+        collapsed ? "w-20 px-2" : "w-56 px-4"
+      }`}
+    >
       <nav className="flex flex-col gap-2">
         {menuItems.map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-colors duration-150
+            title={collapsed ? item.label : undefined}
+            className={`flex items-center rounded-md px-3 py-2 font-medium transition-colors duration-150 ${
+              collapsed ? "justify-center" : "gap-3"
+            }
               ${location.pathname === item.to
                 ? "bg-primary text-white"
                 : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800"}
             `}
           >
             {item.icon}
-            <span>{item.label}</span>
+            {!collapsed && <span>{item.label}</span>}
           </Link>
         ))}
       </nav>

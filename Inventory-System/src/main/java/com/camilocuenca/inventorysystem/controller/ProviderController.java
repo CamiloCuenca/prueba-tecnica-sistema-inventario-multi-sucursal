@@ -70,10 +70,5 @@ public class ProviderController {
         }
     }
 
-    @GetMapping("/{id}/products")
-    public ResponseEntity<Page<ProductByProviderDto>> getProductsByProvider(@PathVariable UUID id, Pageable pageable) {
-        Page<ProductByProviderDto> page = providerService.listProductsByProvider(id, pageable);
-        return ResponseEntity.ok(page);
-    }
 }
 

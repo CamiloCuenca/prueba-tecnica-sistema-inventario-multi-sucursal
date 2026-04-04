@@ -3,6 +3,9 @@ package com.camilocuenca.inventorysystem.controller;
 import com.camilocuenca.inventorysystem.dto.jwt.TokenDTO;
 import com.camilocuenca.inventorysystem.dto.user.LoginDTO;
 import com.camilocuenca.inventorysystem.service.serviceInterface.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +28,12 @@ public class AuthController {
         this.userService = userService;
     }
 
+    @Operation(summary = "Iniciar sesión", description = "Autentica un usuario y devuelve un token JWT")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Autenticación exitosa"),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+            @ApiResponse(responseCode = "401", description = "Credenciales incorrectas")
+    })
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginDTO loginDTO, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
