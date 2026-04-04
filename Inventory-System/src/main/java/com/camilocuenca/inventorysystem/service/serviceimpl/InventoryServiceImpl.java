@@ -5,6 +5,7 @@ import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
 import com.camilocuenca.inventorysystem.dto.product.ProductByProviderDto;
+import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.Inventory;
 import com.camilocuenca.inventorysystem.model.Product;
@@ -15,6 +16,8 @@ import com.camilocuenca.inventorysystem.repository.UserRepository;
 import com.camilocuenca.inventorysystem.repository.ProductRepository;
 import com.camilocuenca.inventorysystem.repository.ProviderRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.InventoryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -30,6 +33,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class InventoryServiceImpl implements InventoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(InventoryServiceImpl.class);
 
     private final InventoryRepository inventoryRepository;
     private final UserRepository userRepository;
@@ -188,29 +193,60 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    public org.springframework.data.domain.Page<com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto> getLowStockAlerts(java.util.UUID branchId, Pageable pageable) {
-        // Validar existencia de la sucursal
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Page<InventoryLowStockDto> getLowStockAlerts(UUID branchId, Pageable pageable) {
+        if (branchId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "branchId is required");
+        }
+        // Validate branch exists
         branchRepository.findById(branchId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sucursal no encontrada"));
 
-        Page<Inventory> page = inventoryRepository.findLowStockByBranch(branchId, pageable);
-        List<com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto> dtos = page.stream().map(i -> {
-            com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto dto = new com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto();
-            Product p = i.getProduct();
-            dto.setProductId(p.getId());
-            dto.setProductName(p.getName());
-            dto.setCurrentStock(i.getQuantity() != null ? i.getQuantity() : java.math.BigDecimal.ZERO);
-            dto.setMinStock(i.getMinStock() != null ? i.getMinStock() : java.math.BigDecimal.ZERO);
-            return dto;
-        }).collect(Collectors.toList());
+        try {
+            // Use repository paging query to get Inventory entities and map
+            Page<Inventory> page = inventoryRepository.findLowStockByBranch(branchId, pageable);
+            List<InventoryLowStockDto> dtos = page.stream().map(i -> {
+                InventoryLowStockDto dto = new InventoryLowStockDto();
+                Product p = i.getProduct();
+                dto.setProductId(p.getId());
+                dto.setProductName(p.getName());
+                dto.setSku(p.getSku());
+                dto.setCurrentStock(i.getQuantity() != null ? i.getQuantity().intValue() : 0);
+                dto.setMinStock(i.getMinStock() != null ? i.getMinStock().intValue() : 0);
+                dto.setDifference(dto.getMinStock() - dto.getCurrentStock());
+                dto.setCategory(null); // category not modeled
+                dto.setSupplier(p.getProvider() != null ? p.getProvider().getName() : null);
+                // urgency calculation
+                if (dto.getCurrentStock() == 0) dto.setUrgencyLevel("CRÍTICO");
+                else if (dto.getCurrentStock() * 2 <= dto.getMinStock()) dto.setUrgencyLevel("ALTO");
+                else dto.setUrgencyLevel("MEDIO");
+                return dto;
+            }).collect(Collectors.toList());
 
-        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+            log.info("Low stock alerts for branch {}: found {} items", branchId, dtos.size());
+            return new PageImpl<>(dtos, pageable, page.getTotalElements());
+        } catch (Exception ex) {
+            log.error("Error fetching low stock alerts for branch {}", branchId, ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno al obtener alertas");
+        }
     }
 
     @Override
-    public java.util.List<com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto> getLowStockAlerts(java.util.UUID branchId) {
-        // Llamar a la versión paginada con un tamaño razonable (por ejemplo 100)
-        Pageable p = org.springframework.data.domain.PageRequest.of(0, 100);
-        return getLowStockAlerts(branchId, p).getContent();
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<InventoryLowStockDto> getLowStockAlerts(UUID branchId) {
+        if (branchId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "branchId is required");
+        }
+        // Validate branch exists
+        branchRepository.findById(branchId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sucursal no encontrada"));
+
+        try {
+            List<InventoryLowStockDto> results = inventoryRepository.findLowStockAlertsByBranch(branchId);
+            log.info("Low stock alerts (list) for branch {}: found {} items", branchId, results.size());
+            return results;
+        } catch (Exception ex) {
+            log.error("Error fetching low stock alerts list for branch {}", branchId, ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno al obtener alertas");
+        }
     }
 
     @Override

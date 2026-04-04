@@ -1,47 +1,23 @@
 package com.camilocuenca.inventorysystem.dto.metrics;
 
-import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.UUID;
 
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class InventoryLowStockDto {
     private UUID productId;
     private String productName;
-    private BigDecimal currentStock;
-    private BigDecimal minStock;
-
-    public InventoryLowStockDto() {
-    }
-
-    public UUID getProductId() {
-        return productId;
-    }
-
-    public void setProductId(UUID productId) {
-        this.productId = productId;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public void setProductName(String productName) {
-        this.productName = productName;
-    }
-
-    public BigDecimal getCurrentStock() {
-        return currentStock;
-    }
-
-    public void setCurrentStock(BigDecimal currentStock) {
-        this.currentStock = currentStock;
-    }
-
-    public BigDecimal getMinStock() {
-        return minStock;
-    }
-
-    public void setMinStock(BigDecimal minStock) {
-        this.minStock = minStock;
-    }
+    private String sku;
+    private Integer currentStock;
+    private Integer minStock;
+    private Integer difference;
+    private String category;
+    private String supplier;
+    private String urgencyLevel;
 }
 

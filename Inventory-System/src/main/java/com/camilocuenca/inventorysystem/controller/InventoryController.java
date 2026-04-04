@@ -19,6 +19,8 @@ import jakarta.validation.Valid;
 import com.camilocuenca.inventorysystem.dto.inventory.SalePriceUpdateDto;
 import com.camilocuenca.inventorysystem.dto.product.ProductPriceDto;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 
 import java.util.Collection;
 import java.util.List;
@@ -270,5 +272,16 @@ public class InventoryController {
     public ResponseEntity<Void> deletePrice(@PathVariable UUID priceId) {
         productPriceService.deletePrice(priceId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Endpoint para obtener alertas de stock bajo para una sucursal.
+     * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
+     */
+    @GetMapping("/inventory/low-stock-alerts")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<List<InventoryLowStockDto>> getLowStockAlerts(@RequestParam UUID branchId) {
+        java.util.List<InventoryLowStockDto> list = inventoryService.getLowStockAlerts(branchId);
+        return ResponseEntity.ok(list);
     }
 }
