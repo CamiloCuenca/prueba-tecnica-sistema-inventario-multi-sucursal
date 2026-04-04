@@ -40,10 +40,10 @@ const baseMenu = [
     roles: ["ADMIN", "MANAGER", "OPERATOR"],
   },
   {
-    label: "Transacciones",
+    label: "transacciones",
     icon: <SwapHorizIcon fontSize="medium" />,
     to: "/transacciones",
-    roles: ["ADMIN", "MANAGER"],
+    roles: ["ADMIN", "MANAGER", , "OPERATOR"],
   },
   {
     label: "Usuarios",
