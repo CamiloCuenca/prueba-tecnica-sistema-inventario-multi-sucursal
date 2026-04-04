@@ -9,9 +9,16 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import com.camilocuenca.inventorysystem.Enums.RoutePriority;
 
+/**
+ * Entidad Transfer: representa una transferencia de productos entre sucursales.
+ * Se añaden campos logísticos (carrier, estimatedArrival, routePriority, routeCost,
+ * estimatedTransitMinutes) para soportar visibilidad de rutas y tiempos de envío
+ * en el módulo de logística.
+ */
 @Getter
 @Setter
 @Entity
@@ -56,29 +63,30 @@ public class Transfer {
     @Column(name = "received_at")
     private Instant receivedAt;
 
-    // Transportista responsable del envío
+    /** Transportista responsable del envío */
     @Column(name = "carrier", length = 200)
     private String carrier;
 
-    // Fecha estimada de llegada
+    /** Fecha estimada de llegada */
     @Column(name = "estimated_arrival")
     private Instant estimatedArrival;
 
-    // Logistics fields
+    /** Identificador de la ruta (opcional) */
     @Column(name = "route_id")
     private String routeId;
 
+    /** Prioridad de la ruta */
     @Enumerated(EnumType.STRING)
     @Column(name = "route_priority", length = 20)
     private RoutePriority routePriority;
 
-    @Column(name = "estimated_transit_minutes")
-    private Integer estimatedTransitMinutes;
 
+    /** Minutos reales de tránsito calculados cuando se recibe */
     @Column(name = "actual_transit_minutes")
     private Integer actualTransitMinutes;
 
-    @Column(name = "route_cost")
-    private Double routeCost;
+    /** Costo estimado de la ruta (valor monetario) */
+    @Column(name = "route_cost", precision = 18, scale = 2)
+    private BigDecimal routeCost;
 
 }

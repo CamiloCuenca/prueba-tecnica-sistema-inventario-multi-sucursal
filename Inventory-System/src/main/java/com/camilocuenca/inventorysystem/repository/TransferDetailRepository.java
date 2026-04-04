@@ -14,5 +14,6 @@ public interface TransferDetailRepository extends JpaRepository<TransferDetail, 
 
     Page<TransferDetail> findByTransferId(UUID transferId, Pageable pageable);
 
-}
+    int countByTransferId(UUID transferId);
 
+}

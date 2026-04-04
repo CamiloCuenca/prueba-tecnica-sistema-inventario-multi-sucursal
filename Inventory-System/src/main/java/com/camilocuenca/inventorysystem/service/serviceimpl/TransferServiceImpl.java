@@ -19,6 +19,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class TransferServiceImpl implements TransferService {
@@ -31,6 +34,9 @@ public class TransferServiceImpl implements TransferService {
     private final InventoryRepository inventoryRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final TransferAlertRepository transferAlertRepository;
+
+    // Estados considerados "activos" en el ciclo de transferencia
+    private static final List<String> ACTIVE_STATES = Arrays.asList("PENDING", "PREPARING", "SHIPPED", "PARTIALLY_SHIPPED", "IN_TRANSIT", "PARTIALLY_RECEIVED");
 
     @Autowired
     public TransferServiceImpl(TransferRepository transferRepository,
@@ -309,11 +315,15 @@ public class TransferServiceImpl implements TransferService {
 
 
     /**
-     * Despacho de la transferencia por la sucursal origen. Este método se llama después de la preparación y confirma el envío.
-     * @param transferId
-     * @param body
-     * @param requesterUserId
-     * @return
+     * Despacho de la transferencia por la sucursal origen.
+     *
+     * Reglas añadidas para soporte logístico:
+     * - Al despachar, la transferencia pasa a estado 'EN_TRANSITO' y se marca la fecha de 'shippedAt' para
+     *   tener trazabilidad del momento real de salida. Esto es necesario para medir cumplimiento logístico.
+     * - Se persisten los metadatos logísticos recibidos en el DTO (carrier, estimatedArrival, route info, cost).
+     * - Se registra un movimiento en la tabla inventory_transaction por cada item (tipo OUT, reason 'TRANSFER_DISPATCH')
+     *   indicando el responsable (user), la sucursal origen y la referencia a la transferencia. Esto garantiza trazabilidad
+     *   en cada cambio de estado.
      */
     @Override
     @Transactional
@@ -331,9 +341,9 @@ public class TransferServiceImpl implements TransferService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario no autorizado para registrar el despacho");
         }
 
+        // Persistir metadatos logísticos
         transfer.setCarrier(body.getCarrier());
         transfer.setEstimatedArrival(body.getEstimatedArrival());
-        // Registrar metadata de ruta si viene
         if (body.getRouteId() != null) transfer.setRouteId(body.getRouteId());
         if (body.getRoutePriority() != null) {
             try {
@@ -342,36 +352,51 @@ public class TransferServiceImpl implements TransferService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "routePriority inválido. Valores permitidos: LOW, MEDIUM, HIGH, URGENT");
             }
         }
-        if (body.getEstimatedTransitMinutes() != null) transfer.setEstimatedTransitMinutes(body.getEstimatedTransitMinutes());
         if (body.getRouteCost() != null) transfer.setRouteCost(body.getRouteCost());
-        transfer.setStatus("IN_TRANSIT");
-        // No sobrescribir shippedAt (fecha de preparación). Registrar la fecha real de despacho en dispatchedAt si no existe.
-        if (transfer.getDispatchedAt() == null) {
-            transfer.setDispatchedAt(Instant.now());
+
+        // Cambiar estado y marcar shippedAt si aún no está
+        transfer.setStatus("EN_TRANSITO");
+        if (transfer.getShippedAt() == null) {
+            transfer.setShippedAt(Instant.now());
         }
+        // Registrar dispatchedAt como momento del registro del despacho
+        transfer.setDispatchedAt(Instant.now());
+
+        // Registrar movimientos de inventario (traza) para cada item confirmado en la transferencia
+        List<TransferDetail> details = transferDetailRepository.findByTransferId(transferId);
+        List<InventoryTransaction> txs = new ArrayList<>();
+        for (TransferDetail td : details) {
+            java.math.BigDecimal qty = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
+            if (qty != null && qty.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                InventoryTransaction tx = new InventoryTransaction();
+                tx.setProduct(td.getProduct());
+                tx.setBranch(transfer.getOriginBranch());
+                tx.setUser(requester);
+                tx.setType("OUT");
+                tx.setQuantity(qty);
+                tx.setReason("TRANSFER_DISPATCH");
+                tx.setReferenceType("TRANSFER");
+                tx.setReferenceId(transfer.getId());
+                txs.add(tx);
+            }
+        }
+        if (!txs.isEmpty()) {
+            inventoryTransactionRepository.saveAll(txs);
+        }
+
         transferRepository.save(transfer);
 
         TransferResponseDto resp = new TransferResponseDto();
         resp.setId(transfer.getId());
+        resp.setOriginBranchId(transfer.getOriginBranch() != null ? transfer.getOriginBranch().getId() : null);
+        resp.setDestinationBranchId(transfer.getDestinationBranch() != null ? transfer.getDestinationBranch().getId() : null);
         resp.setStatus(transfer.getStatus());
-        resp.setOriginBranchId(transfer.getOriginBranch().getId());
-        resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
-        resp.setShippedAt(transfer.getShippedAt());
         resp.setCreatedAt(transfer.getCreatedAt());
+        resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());
         resp.setCarrier(transfer.getCarrier());
         resp.setEstimatedArrival(transfer.getEstimatedArrival());
 
-        // Calcular minutos de tránsito estimados si no se proporcionaron
-        if (body.getEstimatedTransitMinutes() == null && transfer.getRoutePriority() != null) {
-            Double originLat = transfer.getOriginBranch().getLatitude();
-            Double originLon = transfer.getOriginBranch().getLongitude();
-            Double destLat = transfer.getDestinationBranch().getLatitude();
-            Double destLon = transfer.getDestinationBranch().getLongitude();
-            double distanceKm = haversineKm(originLat, originLon, destLat, destLon);
-            int estimatedMinutes = estimateMinutesFromDistanceKm(distanceKm, transfer.getRoutePriority());
-            resp.setEstimatedTransitMinutes(estimatedMinutes);
-        }
 
         return resp;
     }
@@ -541,6 +566,78 @@ public class TransferServiceImpl implements TransferService {
         return resp;
     }
 
+    @Override
+    public Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable) {
+        User requester = userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario solicitante no encontrado"));
+
+        boolean isAdmin = requester.getRole() != null && Role.ADMIN.equals(requester.getRole());
+
+        UUID targetBranchId;
+        if (isAdmin && branchId != null) {
+            targetBranchId = branchId;
+        } else {
+            if (requester.getBranch() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usuario no asignado a ninguna sucursal");
+            targetBranchId = requester.getBranch().getId();
+        }
+
+        Page<Transfer> page = transferRepository.findActiveByDestinationBranchId(targetBranchId, ACTIVE_STATES, pageable);
+        List<TransferListDto> dtos = page.stream().map(t -> {
+            TransferListDto dto = new TransferListDto();
+            dto.setId(t.getId());
+            dto.setOriginBranchId(t.getOriginBranch().getId());
+            dto.setDestinationBranchId(t.getDestinationBranch().getId());
+            dto.setOriginBranchName(t.getOriginBranch().getName());
+            dto.setDestinationBranchName(t.getDestinationBranch().getName());
+            dto.setStatus(t.getStatus());
+            dto.setCreatedAt(t.getCreatedAt());
+            dto.setShippedAt(t.getShippedAt());
+            dto.setDispatchedAt(t.getDispatchedAt());
+            dto.setEstimatedArrival(t.getEstimatedArrival());
+            int totalItems = transferDetailRepository.countByTransferId(t.getId());
+            dto.setTotalItems(totalItems);
+            return dto;
+        }).collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
+    @Override
+    public Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable) {
+        User requester = userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario solicitante no encontrado"));
+
+        boolean isAdmin = requester.getRole() != null && Role.ADMIN.equals(requester.getRole());
+
+        UUID targetBranchId;
+        if (isAdmin && branchId != null) {
+            targetBranchId = branchId;
+        } else {
+            if (requester.getBranch() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usuario no asignado a ninguna sucursal");
+            targetBranchId = requester.getBranch().getId();
+        }
+
+        Page<Transfer> page = transferRepository.findActiveByOriginBranchId(targetBranchId, ACTIVE_STATES, pageable);
+        List<TransferListDto> dtos = page.stream().map(t -> {
+            TransferListDto dto = new TransferListDto();
+            dto.setId(t.getId());
+            dto.setOriginBranchId(t.getOriginBranch().getId());
+            dto.setDestinationBranchId(t.getDestinationBranch().getId());
+            dto.setOriginBranchName(t.getOriginBranch().getName());
+            dto.setDestinationBranchName(t.getDestinationBranch().getName());
+            dto.setStatus(t.getStatus());
+            dto.setCreatedAt(t.getCreatedAt());
+            dto.setShippedAt(t.getShippedAt());
+            dto.setDispatchedAt(t.getDispatchedAt());
+            dto.setEstimatedArrival(t.getEstimatedArrival());
+            int totalItems = transferDetailRepository.countByTransferId(t.getId());
+            dto.setTotalItems(totalItems);
+            return dto;
+        }).collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
+
     private double haversineKm(Double lat1, Double lon1, Double lat2, Double lon2) {
         if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return -1d;
         final int R = 6371; // Radius of the earth in km
@@ -570,5 +667,87 @@ public class TransferServiceImpl implements TransferService {
         if (km < 0) return -1;
         double hours = km / speedKmh;
         return (int) Math.max(1, Math.round(hours * 60));
+    }
+
+    @Override
+    public TransferResponseDto getTransferDetail(UUID requesterUserId, UUID transferId) {
+        Transfer transfer = transferRepository.findById(transferId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transferencia no encontrada"));
+
+        User requester = userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Permiso: sólo el MANAGER de la sucursal ORIGEN puede consultar el detalle
+        boolean isManager = requester.getRole() != null && Role.MANAGER.equals(requester.getRole());
+        boolean isOriginManager = isManager && requester.getBranch() != null && transfer.getOriginBranch() != null
+                && requester.getBranch().getId().equals(transfer.getOriginBranch().getId());
+
+        if (!isOriginManager) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el manager de la sucursal origen puede ver el detalle de esta transferencia");
+        }
+
+        List<TransferDetail> details = transferDetailRepository.findByTransferId(transferId);
+
+        TransferResponseDto resp = new TransferResponseDto();
+        resp.setId(transfer.getId());
+        resp.setOriginBranchId(transfer.getOriginBranch() != null ? transfer.getOriginBranch().getId() : null);
+        resp.setDestinationBranchId(transfer.getDestinationBranch() != null ? transfer.getDestinationBranch().getId() : null);
+        resp.setStatus(transfer.getStatus());
+        resp.setCreatedAt(transfer.getCreatedAt());
+        resp.setShippedAt(transfer.getShippedAt());
+        resp.setDispatchedAt(transfer.getDispatchedAt());
+        resp.setReceivedAt(transfer.getReceivedAt());
+        resp.setCarrier(transfer.getCarrier());
+        resp.setEstimatedArrival(transfer.getEstimatedArrival());
+        resp.setRouteId(transfer.getRouteId());
+        resp.setRoutePriority(transfer.getRoutePriority() != null ? transfer.getRoutePriority().name() : null);
+        resp.setActualTransitMinutes(transfer.getActualTransitMinutes());
+        resp.setRouteCost(transfer.getRouteCost());
+
+        List<TransferDetailResponseDto> items = details.stream().map(d -> {
+            TransferDetailResponseDto dr = new TransferDetailResponseDto();
+            dr.setProductId(d.getProduct().getId());
+            dr.setProductName(d.getProduct().getName());
+            dr.setQuantityRequested(d.getQuantity());
+            dr.setQuantityConfirmed(d.getQuantityConfirmed());
+            dr.setReceivedQuantity(d.getReceivedQuantity());
+            return dr;
+        }).collect(Collectors.toList());
+
+        resp.setItems(items);
+        return resp;
+    }
+
+    @Override
+    public com.camilocuenca.inventorysystem.dto.transfer.TransferComplianceDto getLogisticsCompliance(UUID requesterUserId, UUID transferId) {
+        Transfer transfer = transferRepository.findById(transferId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transferencia no encontrada"));
+
+        User requester = userRepository.findById(requesterUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        // Sólo el manager de la sucursal origen puede consultar el cumplimiento logístico
+        boolean isManager = requester.getRole() != null && Role.MANAGER.equals(requester.getRole());
+        boolean isOriginManager = isManager && requester.getBranch() != null && transfer.getOriginBranch() != null
+                && requester.getBranch().getId().equals(transfer.getOriginBranch().getId());
+        if (!isOriginManager) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el manager de la sucursal origen puede ver el cumplimiento logístico");
+        }
+
+        TransferComplianceDto dto = new TransferComplianceDto();
+        dto.setTransferId(transfer.getId() != null ? transfer.getId().toString() : null);
+        dto.setEstimatedArrival(transfer.getEstimatedArrival());
+        dto.setReceivedAt(transfer.getReceivedAt());
+
+        if (transfer.getEstimatedArrival() != null && transfer.getReceivedAt() != null) {
+            long diff = java.time.Duration.between(transfer.getEstimatedArrival(), transfer.getReceivedAt()).toMinutes();
+            dto.setDiffMinutes(diff);
+            dto.setMet(!transfer.getReceivedAt().isAfter(transfer.getEstimatedArrival()));
+        } else {
+            dto.setDiffMinutes(null);
+            dto.setMet(false);
+        }
+
+        return dto;
     }
 }

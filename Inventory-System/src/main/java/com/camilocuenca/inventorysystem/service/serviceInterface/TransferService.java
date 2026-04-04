@@ -5,6 +5,10 @@ import com.camilocuenca.inventorysystem.dto.transfer.TransferRequestDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferResponseDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferDispatchDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferReceiveDto;
+import com.camilocuenca.inventorysystem.dto.transfer.TransferListDto;
+import com.camilocuenca.inventorysystem.dto.transfer.TransferComplianceDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -66,5 +70,48 @@ public interface TransferService {
      * @return
      */
     TransferResponseDto receiveTransfer(UUID transferId, TransferReceiveDto body, UUID requesterUserId);
+
+    /**
+     * Lista paginada de transferencias activas (no cerradas) cuyo destino es la sucursal del usuario.
+     * - Si el usuario es ADMIN y se provee branchId, se consultará para esa sucursal; en caso contrario
+     *   se usará la sucursal del usuario autenticado.
+     * - Devuelve una página de TransferListDto con información ligera para listados.
+     *
+     * @param requesterUserId UUID del usuario que realiza la consulta (resuelto desde JWT)
+     * @param branchId (opcional) UUID de la sucursal a consultar (solo para ADMIN)
+     * @param pageable paginación
+     * @return página de TransferListDto
+     */
+    Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable);
+
+    /**
+     * Lista paginada de transferencias activas (no cerradas) cuyo origen es la sucursal del usuario.
+     * Comportamiento similar a incomingTransfers respecto a permisos y branchId.
+     *
+     * @param requesterUserId UUID del usuario que realiza la consulta (resuelto desde JWT)
+     * @param branchId (opcional) UUID de la sucursal a consultar (solo para ADMIN)
+     * @param pageable paginación
+     * @return página de TransferListDto
+     */
+    Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable);
+
+    /**
+     * Obtiene el detalle completo de una transferencia por su id.
+     * - Admin puede consultar cualquier transferencia.
+     * - Managers/Operators sólo pueden consultar transfers donde su sucursal sea origen o destino.
+     *
+     * @param requesterUserId UUID del usuario que solicita (resuelto desde JWT)
+     * @param transferId id de la transferencia
+     * @return TransferResponseDto con el detalle completo
+     */
+    TransferResponseDto getTransferDetail(UUID requesterUserId, UUID transferId);
+
+    /**
+     * Calcula el cumplimiento logístico de la transferencia comparando estimatedArrival vs receivedAt.
+     * @param requesterUserId UUID del usuario que solicita
+     * @param transferId id de la transferencia
+     * @return TransferComplianceDto con la diferencia en minutos y si se cumplió
+     */
+    TransferComplianceDto getLogisticsCompliance(UUID requesterUserId, UUID transferId);
 
 }
