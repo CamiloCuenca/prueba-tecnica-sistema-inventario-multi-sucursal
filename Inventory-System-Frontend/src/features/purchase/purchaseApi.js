@@ -47,6 +47,15 @@ export const deletePurchase = async (id) => {
   }
 };
 
+export const receivePurchase = async (id, receiveData) => {
+  try {
+    const response = await api.post(`/api/purchases/${id}/receive`, receiveData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 // ============ PROVIDERS ENDPOINTS ============
 
 export const getProviders = async () => {
