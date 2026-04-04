@@ -27,7 +27,7 @@ const getErrorMessage = (err, fallbackMessage) => {
   return fallbackMessage;
 };
 
-export const useTransferLists = () => {
+export const useTransferLists = ({ branchId, enabled = true } = {}) => {
   const [incomingPage, setIncomingPage] = useState(0);
   const [outgoingPage, setOutgoingPage] = useState(0);
 
@@ -44,10 +44,21 @@ export const useTransferLists = () => {
   const [outgoingError, setOutgoingError] = useState(null);
 
   const loadIncoming = async (page = incomingPage) => {
+    if (!enabled) {
+      setIncomingTransfers([]);
+      setIncomingPageInfo(defaultPageInfo);
+      return;
+    }
+
     setIncomingLoading(true);
     setIncomingError(null);
     try {
-      const data = await getIncomingTransfers({ page, size: 10, sort: ['createdAt,desc'] });
+      const data = await getIncomingTransfers({
+        page,
+        size: 10,
+        sort: ['createdAt,desc'],
+        branchId,
+      });
       const normalized = normalizePage(data, page);
       setIncomingTransfers(normalized.content);
       setIncomingPageInfo(normalized.pageInfo);
@@ -61,10 +72,21 @@ export const useTransferLists = () => {
   };
 
   const loadOutgoing = async (page = outgoingPage) => {
+    if (!enabled) {
+      setOutgoingTransfers([]);
+      setOutgoingPageInfo(defaultPageInfo);
+      return;
+    }
+
     setOutgoingLoading(true);
     setOutgoingError(null);
     try {
-      const data = await getOutgoingTransfers({ page, size: 10, sort: ['createdAt,desc'] });
+      const data = await getOutgoingTransfers({
+        page,
+        size: 10,
+        sort: ['createdAt,desc'],
+        branchId,
+      });
       const normalized = normalizePage(data, page);
       setOutgoingTransfers(normalized.content);
       setOutgoingPageInfo(normalized.pageInfo);
@@ -78,12 +100,19 @@ export const useTransferLists = () => {
   };
 
   useEffect(() => {
+    if (!enabled) return;
     loadIncoming(incomingPage);
-  }, [incomingPage]);
+  }, [incomingPage, branchId, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     loadOutgoing(outgoingPage);
-  }, [outgoingPage]);
+  }, [outgoingPage, branchId, enabled]);
+
+  useEffect(() => {
+    setIncomingPage(0);
+    setOutgoingPage(0);
+  }, [branchId]);
 
   return {
     incomingTransfers,

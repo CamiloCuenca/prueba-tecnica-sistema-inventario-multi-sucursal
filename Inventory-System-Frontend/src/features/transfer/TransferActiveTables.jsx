@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import BranchList from '../inventory/BranchList';
+import { decodeJWT } from '../../utils/jwt';
 import DispatchTransferModal from './components/DispatchTransferModal';
 import PrepareTransferModal from './components/PrepareTransferModal';
 import TransfersTable from './components/TransfersTable';
@@ -24,6 +26,14 @@ const createInitialDispatchForm = () => ({
 });
 
 export default function TransferActiveTables() {
+  const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
+  const payload = decodeJWT(token);
+  const role = payload?.role || null;
+  const tokenBranchId = payload?.branchId || payload?.branch_id || payload?.branch || null;
+  const isAdmin = role === 'ADMIN';
+
+  const [selectedBranchId, setSelectedBranchId] = useState(tokenBranchId);
+
   const {
     incomingTransfers,
     outgoingTransfers,
@@ -36,7 +46,10 @@ export default function TransferActiveTables() {
     setIncomingPage,
     setOutgoingPage,
     loadOutgoing,
-  } = useTransferLists();
+  } = useTransferLists({
+    branchId: isAdmin ? selectedBranchId : undefined,
+    enabled: !isAdmin || Boolean(selectedBranchId),
+  });
 
   const [prepareModalOpen, setPrepareModalOpen] = useState(false);
   const [prepareLoading, setPrepareLoading] = useState(false);
@@ -252,6 +265,19 @@ export default function TransferActiveTables() {
   return (
     <>
       <div className="space-y-6">
+        {isAdmin && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">Selecciona sucursal</h2>
+            <BranchList
+              selectedBranchId={selectedBranchId}
+              onBranchSelect={setSelectedBranchId}
+            />
+            {!selectedBranchId && (
+              <p className="text-sm text-gray-600">Selecciona una sucursal para ver sus transferencias activas.</p>
+            )}
+          </div>
+        )}
+
         <TransfersTable
           title="Transferencias Entrantes Activas"
           rows={incomingRows}
