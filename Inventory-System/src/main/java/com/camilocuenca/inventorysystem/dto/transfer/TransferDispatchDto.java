@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 
 public class TransferDispatchDto {
 
@@ -16,8 +17,7 @@ public class TransferDispatchDto {
     // Logistics optional
     private String routeId;
     private String routePriority; // LOW, MEDIUM, HIGH, URGENT
-    private Integer estimatedTransitMinutes;
-    private Double routeCost;
+    private BigDecimal routeCost;
 
     public String getCarrier() {
         return carrier;
@@ -51,19 +51,11 @@ public class TransferDispatchDto {
         this.routePriority = routePriority;
     }
 
-    public Integer getEstimatedTransitMinutes() {
-        return estimatedTransitMinutes;
-    }
-
-    public void setEstimatedTransitMinutes(Integer estimatedTransitMinutes) {
-        this.estimatedTransitMinutes = estimatedTransitMinutes;
-    }
-
-    public Double getRouteCost() {
+    public BigDecimal getRouteCost() {
         return routeCost;
     }
 
-    public void setRouteCost(Double routeCost) {
+    public void setRouteCost(BigDecimal routeCost) {
         this.routeCost = routeCost;
     }
 }

@@ -9,6 +9,7 @@ import InventarioPage from "../pages/InventarioPage";
 import Sidebar from "../components/Sidebar";
 import SalesPage from '../pages/SalesPage';
 import PurchasePage from '../pages/PurchasePage';
+import TransfersPage from '../pages/TransfersPage';
 
 function ProtectedRoute({ children }) {
   const token = sessionStorage.getItem("token");
@@ -108,6 +109,20 @@ const AppRoutes = () => (
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/transacciones"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <TransfersPage/>
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+
+
       {/* Redirige la raíz al login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>

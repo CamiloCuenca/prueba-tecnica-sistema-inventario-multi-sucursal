@@ -1,11 +1,18 @@
 import React from "react";
 import Card from "./Card";
 
-export default function Modal({ open, onClose, children }) {
+export default function Modal({ open, onClose, children, contentClassName = "" }) {
   if (!open) return null;
+
+  const baseClassName = "bg-white rounded-lg shadow-lg p-6 relative w-full";
+  const defaultSizeClassName = "min-w-[320px] max-w-lg";
+  const modalContentClassName = contentClassName
+    ? `${baseClassName} ${contentClassName}`
+    : `${baseClassName} ${defaultSizeClassName}`;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10">
-      <div className="bg-white rounded-lg shadow-lg p-6 relative min-w-[320px] max-w-lg w-full">
+      <div className={modalContentClassName}>
         <button
           onClick={onClose}
           className="absolute top-2 right-2 text-gray-400 hover:text-primary text-xl font-bold focus:outline-none"

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public interface TransferRepository extends JpaRepository<Transfer, UUID> {
@@ -24,5 +25,11 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
     @Query("SELECT t FROM Transfer t WHERE t.destinationBranch.id = :branchId AND t.createdAt >= :from AND t.createdAt <= :to")
     Page<Transfer> findByDestinationBranchIdAndCreatedAtBetween(@Param("branchId") UUID branchId, @Param("from") Instant from, @Param("to") Instant to, Pageable pageable);
 
-}
+    // Consultas para transfers activos (estados intermedios) por destino u origen
+    @Query("SELECT t FROM Transfer t WHERE t.destinationBranch.id = :branchId AND t.status IN :activeStates")
+    Page<Transfer> findActiveByDestinationBranchId(@Param("branchId") UUID branchId, @Param("activeStates") List<String> activeStates, Pageable pageable);
 
+    @Query("SELECT t FROM Transfer t WHERE t.originBranch.id = :branchId AND t.status IN :activeStates")
+    Page<Transfer> findActiveByOriginBranchId(@Param("branchId") UUID branchId, @Param("activeStates") List<String> activeStates, Pageable pageable);
+
+}

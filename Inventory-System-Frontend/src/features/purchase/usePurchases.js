@@ -64,12 +64,17 @@ export const usePurchases = ({ page = 0, size = 20, status = '' } = {}) => {
     fetchPurchases(pageNumber);
   };
 
+  const refetchPurchases = () => {
+    fetchPurchases(page);
+  };
+
   return {
     purchases,
     loading,
     error,
     pageInfo,
     goToPage,
+    refetchPurchases,
     branchId,
   };
 };

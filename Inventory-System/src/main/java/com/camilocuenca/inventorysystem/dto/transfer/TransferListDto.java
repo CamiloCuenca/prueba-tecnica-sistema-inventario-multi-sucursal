@@ -1,28 +1,23 @@
 package com.camilocuenca.inventorysystem.dto.transfer;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
-import java.math.BigDecimal;
 
-public class TransferResponseDto {
-
+/**
+ * DTO ligero para listar transferencias en páginas (resumen).
+ */
+public class TransferListDto {
     private UUID id;
     private UUID originBranchId;
     private UUID destinationBranchId;
+    private String originBranchName;
+    private String destinationBranchName;
     private String status;
     private Instant createdAt;
     private Instant shippedAt;
     private Instant dispatchedAt;
-    private Instant receivedAt;
-    private String carrier;
     private Instant estimatedArrival;
-    // Logistics
-    private String routeId;
-    private String routePriority;
-    private Integer actualTransitMinutes;
-    private BigDecimal routeCost;
-    private List<TransferDetailResponseDto> items;
+    private int totalItems;
 
     public UUID getId() {
         return id;
@@ -46,6 +41,22 @@ public class TransferResponseDto {
 
     public void setDestinationBranchId(UUID destinationBranchId) {
         this.destinationBranchId = destinationBranchId;
+    }
+
+    public String getOriginBranchName() {
+        return originBranchName;
+    }
+
+    public void setOriginBranchName(String originBranchName) {
+        this.originBranchName = originBranchName;
+    }
+
+    public String getDestinationBranchName() {
+        return destinationBranchName;
+    }
+
+    public void setDestinationBranchName(String destinationBranchName) {
+        this.destinationBranchName = destinationBranchName;
     }
 
     public String getStatus() {
@@ -80,22 +91,6 @@ public class TransferResponseDto {
         this.dispatchedAt = dispatchedAt;
     }
 
-    public Instant getReceivedAt() {
-        return receivedAt;
-    }
-
-    public void setReceivedAt(Instant receivedAt) {
-        this.receivedAt = receivedAt;
-    }
-
-    public String getCarrier() {
-        return carrier;
-    }
-
-    public void setCarrier(String carrier) {
-        this.carrier = carrier;
-    }
-
     public Instant getEstimatedArrival() {
         return estimatedArrival;
     }
@@ -104,43 +99,12 @@ public class TransferResponseDto {
         this.estimatedArrival = estimatedArrival;
     }
 
-    public String getRouteId() {
-        return routeId;
+    public int getTotalItems() {
+        return totalItems;
     }
 
-    public void setRouteId(String routeId) {
-        this.routeId = routeId;
-    }
-
-    public String getRoutePriority() {
-        return routePriority;
-    }
-
-    public void setRoutePriority(String routePriority) {
-        this.routePriority = routePriority;
-    }
-
-    public Integer getActualTransitMinutes() {
-        return actualTransitMinutes;
-    }
-
-    public void setActualTransitMinutes(Integer actualTransitMinutes) {
-        this.actualTransitMinutes = actualTransitMinutes;
-    }
-
-    public BigDecimal getRouteCost() {
-        return routeCost;
-    }
-
-    public void setRouteCost(BigDecimal routeCost) {
-        this.routeCost = routeCost;
-    }
-
-    public List<TransferDetailResponseDto> getItems() {
-        return items;
-    }
-
-    public void setItems(List<TransferDetailResponseDto> items) {
-        this.items = items;
+    public void setTotalItems(int totalItems) {
+        this.totalItems = totalItems;
     }
 }
+

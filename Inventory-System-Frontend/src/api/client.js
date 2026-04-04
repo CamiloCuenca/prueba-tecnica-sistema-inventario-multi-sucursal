@@ -8,7 +8,7 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Obtenemos el token (usualmente de sessionStorage o un estado global)
-    const token = sessionStorage.getItem("token");
+    const token = sessionStorage.getItem("token") || sessionStorage.getItem("authToken");
 
     // Si existe el token, lo añadimos a los headers
     if (token) {
