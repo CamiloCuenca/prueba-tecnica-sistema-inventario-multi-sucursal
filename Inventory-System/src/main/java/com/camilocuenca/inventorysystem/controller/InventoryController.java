@@ -212,8 +212,10 @@ public class InventoryController {
     /**
      * Endpoint para listar los nombres e IDs de todas las sucursales.
      * Cualquier usuario autenticado puede consultar esta lista.
+     *
+     * Nota: se mapea a `/api/branches/names` para no colisionar con el CRUD de `Branch` en `/api/branches`.
      */
-    @GetMapping("/branches")
+    @GetMapping("/branches/names")
     public ResponseEntity<java.util.List<BranchDto>> getAllBranches(Authentication authentication) {
         UUID requesterId = resolveRequesterId(authentication);
         if (requesterId == null) {
