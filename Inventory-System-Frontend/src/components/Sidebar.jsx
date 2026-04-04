@@ -6,7 +6,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Link, useLocation } from "react-router-dom";
 import { decodeJWT } from "../utils/jwt";
-import { LocalGroceryStore, PointOfSale } from "@mui/icons-material";
+import { LocalGroceryStore, PointOfSale, Business } from "@mui/icons-material";
 
 function getRole() {
   const token = sessionStorage.getItem("token");
@@ -50,6 +50,12 @@ const baseMenu = [
     icon: <PeopleIcon fontSize="medium" />,
     to: "/usuarios",
     roles: ["ADMIN"],
+  },
+  {
+    label: "Sucursales",
+    icon: <Business fontSize="medium" />,
+    to: "/sucursales",
+    roles: ["ADMIN", "MANAGER"],
   },
 ];
 
