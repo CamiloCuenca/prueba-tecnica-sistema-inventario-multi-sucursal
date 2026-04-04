@@ -1,6 +1,7 @@
 package com.camilocuenca.inventorysystem.repository;
 
 import com.camilocuenca.inventorysystem.model.Transfer;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,7 +18,7 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
 
     Page<Transfer> findByDestinationBranchId(UUID destinationBranchId, Pageable pageable);
 
-    Page<Transfer> findByStatus(String status, Pageable pageable);
+    Page<Transfer> findByStatus(TransferStatus status, Pageable pageable);
 
     @Query("SELECT t FROM Transfer t WHERE t.originBranch.id = :branchId AND t.createdAt >= :from AND t.createdAt <= :to")
     Page<Transfer> findByOriginBranchIdAndCreatedAtBetween(@Param("branchId") UUID branchId, @Param("from") Instant from, @Param("to") Instant to, Pageable pageable);
@@ -27,9 +28,9 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
 
     // Consultas para transfers activos (estados intermedios) por destino u origen
     @Query("SELECT t FROM Transfer t WHERE t.destinationBranch.id = :branchId AND t.status IN :activeStates")
-    Page<Transfer> findActiveByDestinationBranchId(@Param("branchId") UUID branchId, @Param("activeStates") List<String> activeStates, Pageable pageable);
+    Page<Transfer> findActiveByDestinationBranchId(@Param("branchId") UUID branchId, @Param("activeStates") List<TransferStatus> activeStates, Pageable pageable);
 
     @Query("SELECT t FROM Transfer t WHERE t.originBranch.id = :branchId AND t.status IN :activeStates")
-    Page<Transfer> findActiveByOriginBranchId(@Param("branchId") UUID branchId, @Param("activeStates") List<String> activeStates, Pageable pageable);
+    Page<Transfer> findActiveByOriginBranchId(@Param("branchId") UUID branchId, @Param("activeStates") List<TransferStatus> activeStates, Pageable pageable);
 
 }

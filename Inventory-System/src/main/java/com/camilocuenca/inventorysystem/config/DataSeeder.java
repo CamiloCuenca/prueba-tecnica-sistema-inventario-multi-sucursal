@@ -2,6 +2,7 @@ package com.camilocuenca.inventorysystem.config;
 
 import com.camilocuenca.inventorysystem.Enums.PurchaseStatus;
 import com.camilocuenca.inventorysystem.Enums.Role;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 import com.camilocuenca.inventorysystem.model.*;
 import com.camilocuenca.inventorysystem.repository.*;
 import org.springframework.boot.CommandLineRunner;
@@ -423,7 +424,7 @@ public class DataSeeder {
             List<Transfer> transfersToSave = new ArrayList<>();
             List<TransferDetail> transferDetailsToSave = new ArrayList<>();
             List<InventoryTransaction> transferTxs = new ArrayList<>();
-            String[] statuses = new String[]{"PREPARING","EN_TRANSIT","RECEIVED"};
+            TransferStatus[] statuses = new TransferStatus[]{TransferStatus.PREPARING, TransferStatus.IN_TRANSIT, TransferStatus.RECEIVED};
             for (int t = 0; t < 10; t++) {
                 Branch origin = branches.get(rnd.nextInt(branches.size()));
                 Branch dest = branches.get(rnd.nextInt(branches.size()));
@@ -433,7 +434,7 @@ public class DataSeeder {
                 tr.setDestinationBranch(dest);
                 tr.setCreatedBy(users.get(rnd.nextInt(users.size())));
                 tr.setApprovedBy(users.get(rnd.nextInt(users.size())));
-                String status = statuses[rnd.nextInt(statuses.length)];
+                TransferStatus status = statuses[rnd.nextInt(statuses.length)];
                 tr.setStatus(status);
                 tr.setCreatedAt(Instant.now().minusSeconds(rnd.nextInt(86400*20)));
 
@@ -454,12 +455,12 @@ public class DataSeeder {
                     transferDetailsToSave.add(td);
 
                     // si status es EN_TRANSIT o PREPARING, descontar del origin (reservado)
-                    if (status.equalsIgnoreCase("EN_TRANSIT") || status.equalsIgnoreCase("PREPARING")) {
+                    if (status == TransferStatus.IN_TRANSIT || status == TransferStatus.PREPARING) {
                         chosen.setQuantity(chosen.getQuantity().subtract(qty));
                         if (chosen.getQuantity().compareTo(BigDecimal.ZERO) < 0) chosen.setQuantity(BigDecimal.ZERO);
                     }
                     // si status es RECEIVED, aumentar inventario del destino
-                    if (status.equalsIgnoreCase("RECEIVED")) {
+                    if (status == TransferStatus.RECEIVED) {
                         boolean found = false;
                         for (Inventory inv : inventories) {
                             if (inv.getBranch().getId().equals(dest.getId()) && inv.getProduct().getId().equals(chosen.getProduct().getId())) {
@@ -495,7 +496,7 @@ public class DataSeeder {
                     transferTxs.add(txOut);
 
                     // si ya recibido, crear IN tx for destination
-                    if (status.equalsIgnoreCase("RECEIVED")) {
+                    if (status == TransferStatus.RECEIVED) {
                         InventoryTransaction txIn = new InventoryTransaction();
                         txIn.setBranch(dest);
                         txIn.setProduct(chosen.getProduct());

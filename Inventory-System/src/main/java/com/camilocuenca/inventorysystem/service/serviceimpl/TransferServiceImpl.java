@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.repository.TransferAlertRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.TransferService;
 import com.camilocuenca.inventorysystem.exceptions.InsufficientStockException;
 import com.camilocuenca.inventorysystem.Enums.Role;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,7 @@ public class TransferServiceImpl implements TransferService {
     private final TransferAlertRepository transferAlertRepository;
 
     // Estados considerados "activos" en el ciclo de transferencia
-    private static final List<String> ACTIVE_STATES = Arrays.asList("PENDING", "PREPARING", "SHIPPED", "PARTIALLY_SHIPPED", "IN_TRANSIT", "PARTIALLY_RECEIVED");
+    private static final List<TransferStatus> ACTIVE_STATES = Arrays.asList(TransferStatus.PENDING, TransferStatus.PREPARING, TransferStatus.SHIPPED, TransferStatus.PARTIALLY_SHIPPED, TransferStatus.IN_TRANSIT, TransferStatus.PARTIALLY_RECEIVED);
 
     @Autowired
     public TransferServiceImpl(TransferRepository transferRepository,
@@ -139,7 +140,7 @@ public class TransferServiceImpl implements TransferService {
         Transfer t = new Transfer();
         t.setOriginBranch(origin);
         t.setDestinationBranch(destination);
-        t.setStatus("PENDING");
+        t.setStatus(TransferStatus.PENDING);
         t.setCreatedAt(Instant.now());
         t.setCreatedBy(requester);
 
@@ -163,7 +164,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(saved.getId());
         resp.setOriginBranchId(origin.getId());
         resp.setDestinationBranchId(destination.getId());
-        resp.setStatus(saved.getStatus());
+        resp.setStatus(saved.getStatus() != null ? saved.getStatus().name() : null);
         resp.setCreatedAt(saved.getCreatedAt());
         resp.setShippedAt(saved.getShippedAt());
         resp.setDispatchedAt(saved.getDispatchedAt());
@@ -278,11 +279,11 @@ public class TransferServiceImpl implements TransferService {
         }
 
         if (allPrepared) {
-            transfer.setStatus("SHIPPED");
+            transfer.setStatus(TransferStatus.SHIPPED);
             // Si quedó completamente preparado, marcar fecha de envío
             transfer.setShippedAt(Instant.now());
         } else {
-            transfer.setStatus("PARTIALLY_SHIPPED");
+            transfer.setStatus(TransferStatus.PARTIALLY_SHIPPED);
             // No setear shippedAt para envíos parciales aquí: el envío físico (dispatch) lo marcará
         }
 
@@ -294,7 +295,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(transfer.getId());
         resp.setOriginBranchId(transfer.getOriginBranch().getId());
         resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());
@@ -355,7 +356,7 @@ public class TransferServiceImpl implements TransferService {
         if (body.getRouteCost() != null) transfer.setRouteCost(body.getRouteCost());
 
         // Cambiar estado y marcar shippedAt si aún no está
-        transfer.setStatus("EN_TRANSITO");
+        transfer.setStatus(TransferStatus.IN_TRANSIT);
         if (transfer.getShippedAt() == null) {
             transfer.setShippedAt(Instant.now());
         }
@@ -390,7 +391,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(transfer.getId());
         resp.setOriginBranchId(transfer.getOriginBranch() != null ? transfer.getOriginBranch().getId() : null);
         resp.setDestinationBranchId(transfer.getDestinationBranch() != null ? transfer.getDestinationBranch().getId() : null);
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());
@@ -540,9 +541,9 @@ public class TransferServiceImpl implements TransferService {
 
         if (anyReceived) {
             if (allFullyReceived) {
-                transfer.setStatus("RECEIVED");
+                transfer.setStatus(TransferStatus.RECEIVED);
             } else {
-                transfer.setStatus("PARTIALLY_RECEIVED");
+                transfer.setStatus(TransferStatus.PARTIALLY_RECEIVED);
             }
             transfer.setReceivedAt(Instant.now());
             // Calcular minutos reales de tránsito si dispatchedAt existe
@@ -556,7 +557,7 @@ public class TransferServiceImpl implements TransferService {
         // Construir respuesta
         TransferResponseDto resp = new TransferResponseDto();
         resp.setId(transfer.getId());
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setOriginBranchId(transfer.getOriginBranch().getId());
         resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
         resp.setReceivedAt(transfer.getReceivedAt());
@@ -589,7 +590,7 @@ public class TransferServiceImpl implements TransferService {
             dto.setDestinationBranchId(t.getDestinationBranch().getId());
             dto.setOriginBranchName(t.getOriginBranch().getName());
             dto.setDestinationBranchName(t.getDestinationBranch().getName());
-            dto.setStatus(t.getStatus());
+            dto.setStatus(t.getStatus() != null ? t.getStatus().name() : null);
             dto.setCreatedAt(t.getCreatedAt());
             dto.setShippedAt(t.getShippedAt());
             dto.setDispatchedAt(t.getDispatchedAt());
@@ -625,7 +626,7 @@ public class TransferServiceImpl implements TransferService {
             dto.setDestinationBranchId(t.getDestinationBranch().getId());
             dto.setOriginBranchName(t.getOriginBranch().getName());
             dto.setDestinationBranchName(t.getDestinationBranch().getName());
-            dto.setStatus(t.getStatus());
+            dto.setStatus(t.getStatus() != null ? t.getStatus().name() : null);
             dto.setCreatedAt(t.getCreatedAt());
             dto.setShippedAt(t.getShippedAt());
             dto.setDispatchedAt(t.getDispatchedAt());
@@ -692,7 +693,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(transfer.getId());
         resp.setOriginBranchId(transfer.getOriginBranch() != null ? transfer.getOriginBranch().getId() : null);
         resp.setDestinationBranchId(transfer.getDestinationBranch() != null ? transfer.getDestinationBranch().getId() : null);
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());
