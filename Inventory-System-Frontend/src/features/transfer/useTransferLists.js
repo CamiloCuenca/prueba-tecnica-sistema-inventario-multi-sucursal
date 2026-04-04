@@ -21,13 +21,21 @@ const normalizePage = (data, page) => ({
 });
 
 const getErrorMessage = (err, fallbackMessage) => {
+  if (err?.response?.status === 401) {
+    return 'No autorizado (401). Tu sesion puede haber expirado o tu rol no tiene permisos para este endpoint.';
+  }
   if (typeof err === 'string') return err;
   if (err?.message) return err.message;
   if (err?.error) return err.error;
   return fallbackMessage;
 };
 
-export const useTransferLists = ({ branchId, enabled = true } = {}) => {
+export const useTransferLists = ({
+  branchId,
+  incomingStatus,
+  outgoingStatus,
+  enabled = true,
+} = {}) => {
   const [incomingPage, setIncomingPage] = useState(0);
   const [outgoingPage, setOutgoingPage] = useState(0);
 
@@ -58,6 +66,7 @@ export const useTransferLists = ({ branchId, enabled = true } = {}) => {
         size: 10,
         sort: ['createdAt,desc'],
         branchId,
+        status: incomingStatus,
       });
       const normalized = normalizePage(data, page);
       setIncomingTransfers(normalized.content);
@@ -86,6 +95,7 @@ export const useTransferLists = ({ branchId, enabled = true } = {}) => {
         size: 10,
         sort: ['createdAt,desc'],
         branchId,
+        status: outgoingStatus,
       });
       const normalized = normalizePage(data, page);
       setOutgoingTransfers(normalized.content);
@@ -102,17 +112,25 @@ export const useTransferLists = ({ branchId, enabled = true } = {}) => {
   useEffect(() => {
     if (!enabled) return;
     loadIncoming(incomingPage);
-  }, [incomingPage, branchId, enabled]);
+  }, [incomingPage, branchId, incomingStatus, enabled]);
 
   useEffect(() => {
     if (!enabled) return;
     loadOutgoing(outgoingPage);
-  }, [outgoingPage, branchId, enabled]);
+  }, [outgoingPage, branchId, outgoingStatus, enabled]);
 
   useEffect(() => {
     setIncomingPage(0);
     setOutgoingPage(0);
   }, [branchId]);
+
+  useEffect(() => {
+    setIncomingPage(0);
+  }, [incomingStatus]);
+
+  useEffect(() => {
+    setOutgoingPage(0);
+  }, [outgoingStatus]);
 
   return {
     incomingTransfers,

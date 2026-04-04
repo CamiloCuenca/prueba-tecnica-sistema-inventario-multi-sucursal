@@ -25,6 +25,18 @@ const createInitialDispatchForm = () => ({
   routeCost: '',
 });
 
+const transferStatusOptions = [
+  { value: '', label: 'Todos' },
+  { value: 'PENDING', label: 'PENDING' },
+  { value: 'PREPARING', label: 'PREPARING' },
+  { value: 'SHIPPED', label: 'SHIPPED' },
+  { value: 'PARTIALLY_SHIPPED', label: 'PARTIALLY_SHIPPED' },
+  { value: 'IN_TRANSIT', label: 'IN_TRANSIT' },
+  { value: 'PARTIALLY_RECEIVED', label: 'PARTIALLY_RECEIVED' },
+  { value: 'RECEIVED', label: 'RECEIVED' },
+  { value: 'CANCELLED', label: 'CANCELLED' },
+];
+
 export default function TransferActiveTables() {
   const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
   const payload = decodeJWT(token);
@@ -33,6 +45,8 @@ export default function TransferActiveTables() {
   const isAdmin = role === 'ADMIN';
 
   const [selectedBranchId, setSelectedBranchId] = useState(tokenBranchId);
+  const [incomingStatusFilter, setIncomingStatusFilter] = useState('PENDING');
+  const [outgoingStatusFilter, setOutgoingStatusFilter] = useState('RECEIVED');
 
   const {
     incomingTransfers,
@@ -48,6 +62,8 @@ export default function TransferActiveTables() {
     loadOutgoing,
   } = useTransferLists({
     branchId: isAdmin ? selectedBranchId : undefined,
+    incomingStatus: incomingStatusFilter,
+    outgoingStatus: outgoingStatusFilter,
     enabled: !isAdmin || Boolean(selectedBranchId),
   });
 
@@ -237,6 +253,11 @@ export default function TransferActiveTables() {
 
   const renderOutgoingAction = (row) => {
     const statusCode = getStatusCode(row?._raw?.status);
+
+    if (statusCode === 'RECEIVED') {
+      return null;
+    }
+
     const canDispatch = statusCode === 'PREPARADO' || statusCode === 'SHIPPED';
 
     if (canDispatch) {
@@ -278,6 +299,24 @@ export default function TransferActiveTables() {
           </div>
         )}
 
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="text-sm font-medium text-gray-700" htmlFor="incoming-status-filter">
+            Estado (Entrantes)
+          </label>
+          <select
+            id="incoming-status-filter"
+            value={incomingStatusFilter}
+            onChange={(event) => setIncomingStatusFilter(event.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none sm:w-72"
+          >
+            {transferStatusOptions.map((option) => (
+              <option key={option.label} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <TransfersTable
           title="Transferencias Entrantes Activas"
           rows={incomingRows}
@@ -286,6 +325,24 @@ export default function TransferActiveTables() {
           pageInfo={incomingPageInfo}
           onPageChange={setIncomingPage}
         />
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="text-sm font-medium text-gray-700" htmlFor="outgoing-status-filter">
+            Estado (Salientes)
+          </label>
+          <select
+            id="outgoing-status-filter"
+            value={outgoingStatusFilter}
+            onChange={(event) => setOutgoingStatusFilter(event.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none sm:w-72"
+          >
+            {transferStatusOptions.map((option) => (
+              <option key={option.label} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <TransfersTable
           title="Transferencias Salientes Activas"

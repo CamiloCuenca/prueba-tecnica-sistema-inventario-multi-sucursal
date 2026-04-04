@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { requestTransfer, getBranchInventoryForTransfer, getAllBranches } from './transferApi';
 import { getBranchIdFromToken } from '../../utils/tokenUtils';
+import { decodeJWT } from '../../utils/jwt';
 
 const normalizeBranches = (rows = []) => {
   return rows
@@ -28,6 +29,10 @@ export const useTransferForm = () => {
   const [success, setSuccess] = useState(null);
 
   const currentBranchId = getBranchIdFromToken();
+  const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
+  const payload = decodeJWT(token);
+  const role = payload?.role || null;
+  const isAdmin = role === 'ADMIN';
 
   // Inicializar sucursal origen con la del usuario
   useEffect(() => {
@@ -35,6 +40,12 @@ export const useTransferForm = () => {
       setOriginBranchId(currentBranchId);
     }
   }, [currentBranchId, originBranchId]);
+
+  useEffect(() => {
+    if (!isAdmin && currentBranchId) {
+      setDestinationBranchId(currentBranchId);
+    }
+  }, [isAdmin, currentBranchId]);
 
   // Cargar sucursales disponibles
   useEffect(() => {
@@ -82,10 +93,10 @@ export const useTransferForm = () => {
   }, [originBranchId]);
 
   useEffect(() => {
-    if (originBranchId && destinationBranchId && originBranchId === destinationBranchId) {
+    if (isAdmin && originBranchId && destinationBranchId && originBranchId === destinationBranchId) {
       setDestinationBranchId('');
     }
-  }, [originBranchId, destinationBranchId]);
+  }, [isAdmin, originBranchId, destinationBranchId]);
 
   const getErrorMessage = (err, fallbackMessage) => {
     if (typeof err === 'string') return err;
@@ -152,7 +163,7 @@ export const useTransferForm = () => {
       setSuccess('Solicitud de transferencia creada exitosamente');
       
       // Reset del formulario
-      setDestinationBranchId('');
+      setDestinationBranchId(isAdmin ? '' : currentBranchId || '');
       setSelectedItems({});
       setOriginBranchId(currentBranchId || '');
 
@@ -179,6 +190,8 @@ export const useTransferForm = () => {
     submitting,
     error,
     success,
+    isAdmin,
+    currentBranchId,
     submitTransferRequest,
   };
 };

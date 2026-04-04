@@ -31,6 +31,8 @@ export default function TransferRequestForm() {
     setOriginBranchId,
     destinationBranchId,
     setDestinationBranchId,
+    isAdmin,
+    currentBranchId,
     branches,
     originInventory,
     selectedItems,
@@ -56,6 +58,13 @@ export default function TransferRequestForm() {
   const availableDestinations = branches.filter(
     (b) => b.id !== originBranchId
   );
+
+  const userDestinationBranch = branches.find((branch) => branch.id === currentBranchId);
+  const destinationOptions = isAdmin
+    ? availableDestinations
+    : currentBranchId
+      ? [{ id: currentBranchId, name: userDestinationBranch?.name || currentBranchId }]
+      : [];
 
   if (loadingBranches) {
     return (
@@ -124,11 +133,11 @@ export default function TransferRequestForm() {
           <select
             value={destinationBranchId}
             onChange={(e) => setDestinationBranchId(e.target.value)}
-            disabled={!originBranchId || loadingBranches}
+            disabled={!isAdmin || !originBranchId || loadingBranches}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 disabled:bg-gray-100"
           >
             <option value="">-- Selecciona sucursal --</option>
-            {availableDestinations.map((branch) => (
+            {destinationOptions.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name || branch.id}
               </option>

@@ -52,7 +52,7 @@ export const getAllBranches = async () => {
   }
 };
 
-export const getIncomingTransfers = async ({ page = 0, size = 10, sort = [], branchId } = {}) => {
+export const getIncomingTransfers = async ({ page = 0, size = 10, sort = [], branchId, status } = {}) => {
   try {
     const response = await api.get('/api/transfers/incoming', {
       params: {
@@ -60,6 +60,7 @@ export const getIncomingTransfers = async ({ page = 0, size = 10, sort = [], bra
         size,
         sort,
         ...(branchId ? { branchId } : {}),
+        ...(status ? { status } : {}),
       },
     });
     return response.data;
@@ -68,7 +69,7 @@ export const getIncomingTransfers = async ({ page = 0, size = 10, sort = [], bra
   }
 };
 
-export const getOutgoingTransfers = async ({ page = 0, size = 10, sort = [], branchId } = {}) => {
+export const getOutgoingTransfers = async ({ page = 0, size = 10, sort = [], branchId, status } = {}) => {
   try {
     const response = await api.get('/api/transfers/outgoing', {
       params: {
@@ -76,6 +77,7 @@ export const getOutgoingTransfers = async ({ page = 0, size = 10, sort = [], bra
         size,
         sort,
         ...(branchId ? { branchId } : {}),
+        ...(status ? { status } : {}),
       },
     });
     return response.data;

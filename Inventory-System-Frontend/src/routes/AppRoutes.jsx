@@ -10,6 +10,7 @@ import Sidebar from "../components/Sidebar";
 import SalesPage from '../pages/SalesPage';
 import PurchasePage from '../pages/PurchasePage';
 import TransfersPage from '../pages/TransfersPage';
+import UsersPage from '../pages/UsersPage';
 
 function ProtectedRoute({ children }) {
   const token = sessionStorage.getItem("token");
@@ -116,6 +117,17 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <MainLayout>
               <TransfersPage/>
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/usuarios"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <UsersPage />
             </MainLayout>
           </ProtectedRoute>
         }
