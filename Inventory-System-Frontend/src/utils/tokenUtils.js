@@ -28,3 +28,22 @@ export const getBranchIdFromToken = () => {
   const decoded = decodeToken(token);
   return decoded?.branchId || decoded?.branch_id || decoded?.branch || null;
 };
+
+/**
+ * Obtiene el rol normalizado del token almacenado en sessionStorage
+ * @returns {string|null} - El rol en mayúsculas sin prefijo ROLE_ o null
+ */
+export const getRoleFromToken = () => {
+  const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
+  if (!token) {
+    return null;
+  }
+
+  const decoded = decodeToken(token);
+  const rawRole = decoded?.role || decoded?.authorities?.[0] || null;
+  if (!rawRole) {
+    return null;
+  }
+
+  return String(rawRole).replace(/^ROLE_/, '').toUpperCase();
+};

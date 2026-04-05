@@ -1,10 +1,9 @@
 import React from 'react';
 import { BranchesTabs } from '../features/branches';
-import { decodeJWT } from '../utils/jwt';
+import { getRoleFromToken } from '../utils/tokenUtils';
 
 export default function BranchesPage() {
-  const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
-  const role = decodeJWT(token)?.role;
+  const role = getRoleFromToken();
   const isAdmin = role === 'ADMIN';
   const isManager = role === 'MANAGER';
 

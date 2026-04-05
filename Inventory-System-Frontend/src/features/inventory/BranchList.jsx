@@ -3,6 +3,12 @@ import { useInventory } from "./useInventory";
 import BranchCard from "./branchCard";
 import { decodeJWT } from "../../utils/jwt";
 
+function normalizeBranchesResponse(response) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.content)) return response.content;
+  return [];
+}
+
 export default function BranchList({ onBranchSelect, selectedBranchId }) {
   const { handleBranches, loading, error } = useInventory();
   const [branches, setBranches] = useState([]);
@@ -12,9 +18,7 @@ export default function BranchList({ onBranchSelect, selectedBranchId }) {
 
   useEffect(() => {
     handleBranches().then((res) => {
-      if (Array.isArray(res)) {
-        setBranches(res);
-      }
+      setBranches(normalizeBranchesResponse(res));
     });
     // eslint-disable-next-line
   }, []);

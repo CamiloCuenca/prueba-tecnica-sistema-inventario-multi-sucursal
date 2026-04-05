@@ -1,11 +1,12 @@
 
 import { decodeJWT } from '../utils/jwt';
 import { UsersTabs } from '../features/users';
+import { getRoleFromToken } from '../utils/tokenUtils';
 
 export default function UsersPage() {
 	const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
 	const payload = decodeJWT(token);
-	const role = payload?.role || null;
+	const role = getRoleFromToken() || payload?.role || null;
 
 	if (role !== 'ADMIN') {
 		return (

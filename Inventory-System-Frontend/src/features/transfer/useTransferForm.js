@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { requestTransfer, getBranchInventoryForTransfer, getAllBranches } from './transferApi';
-import { getBranchIdFromToken } from '../../utils/tokenUtils';
+import { getBranchIdFromToken, getRoleFromToken } from '../../utils/tokenUtils';
 import { decodeJWT } from '../../utils/jwt';
 
 const normalizeBranches = (rows = []) => {
@@ -31,7 +31,7 @@ export const useTransferForm = () => {
   const currentBranchId = getBranchIdFromToken();
   const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
   const payload = decodeJWT(token);
-  const role = payload?.role || null;
+  const role = getRoleFromToken() || payload?.role || null;
   const isAdmin = role === 'ADMIN';
 
   // Inicializar sucursal origen con la del usuario

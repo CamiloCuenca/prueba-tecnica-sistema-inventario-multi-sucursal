@@ -12,6 +12,7 @@ import PurchasePage from '../pages/PurchasePage';
 import TransfersPage from '../pages/TransfersPage';
 import UsersPage from '../pages/UsersPage';
 import BranchesPage from '../pages/BranchesPage';
+import GlobalStockAlerts from "../components/GlobalStockAlerts";
 
 function ProtectedRoute({ children }) {
   const token = sessionStorage.getItem("token");
@@ -66,6 +67,7 @@ function MainLayout({ children }) {
 
 const AppRoutes = () => (
   <Router>
+    <GlobalStockAlerts />
     <Routes>
       <Route
         path="/login"

@@ -5,12 +5,11 @@ import BranchForm from './BranchForm';
 import BranchesListView from './BranchesListView';
 import DeleteBranchModal from './DeleteBranchModal';
 import Modal from '../../components/Modal';
-import { decodeJWT } from '../../utils/jwt';
+import { getRoleFromToken } from '../../utils/tokenUtils';
 
 const BranchesTabs = () => {
   // Auth
-  const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
-  const role = decodeJWT(token)?.role;
+  const role = getRoleFromToken();
   const isAdmin = role === 'ADMIN';
 
   // Tabs

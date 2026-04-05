@@ -6,6 +6,24 @@ import ProductCard from '../product/productCard';
 import { useProduct } from '../product/useProduct';
 import { useInventory } from './useInventory';
 
+function normalizeInventoryResponse(response) {
+  if (Array.isArray(response)) {
+    return {
+      content: response,
+      totalPages: 1,
+      first: true,
+      last: true,
+    };
+  }
+
+  return {
+    content: Array.isArray(response?.content) ? response.content : [],
+    totalPages: response?.totalPages || 1,
+    first: response?.first ?? true,
+    last: response?.last ?? true,
+  };
+}
+
 export default function TableInventory({ branchId }) {
   const { handleInventory, handleBranchInventory, loading, error } = useInventory();
   const { handleProducts } = useProduct();
@@ -25,12 +43,13 @@ export default function TableInventory({ branchId }) {
       ? handleBranchInventory({ branchId, page: pageToFetch, size })
       : handleInventory({ page: pageToFetch, size });
     fetch.then((res) => {
-      if (res && Array.isArray(res.content)) {
-        setInventory(res.content);
-        setTotalPages(res.totalPages || 1);
-        setIsFirst(res.first);
-        setIsLast(res.last);
-      }
+      if (!res) return;
+
+      const normalized = normalizeInventoryResponse(res);
+      setInventory(normalized.content);
+      setTotalPages(normalized.totalPages);
+      setIsFirst(normalized.first);
+      setIsLast(normalized.last);
     });
   };
 

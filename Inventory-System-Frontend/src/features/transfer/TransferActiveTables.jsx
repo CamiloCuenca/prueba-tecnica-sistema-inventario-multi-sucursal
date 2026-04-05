@@ -16,6 +16,7 @@ import {
   normalizeTransfers,
 } from './transferUiUtils';
 import { useTransferLists } from './useTransferLists';
+import { getRoleFromToken } from '../../utils/tokenUtils';
 
 const createInitialDispatchForm = () => ({
   carrier: carrierOptions[0],
@@ -40,7 +41,7 @@ const transferStatusOptions = [
 export default function TransferActiveTables() {
   const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
   const payload = decodeJWT(token);
-  const role = payload?.role || null;
+  const role = getRoleFromToken() || payload?.role || null;
   const tokenBranchId = payload?.branchId || payload?.branch_id || payload?.branch || null;
   const isAdmin = role === 'ADMIN';
 
