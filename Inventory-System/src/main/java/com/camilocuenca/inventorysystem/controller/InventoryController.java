@@ -34,16 +34,18 @@ public class InventoryController {
     private final InventoryService inventoryService;
     private final UserRepository userRepository;
     private final ProductPriceService productPriceService;
+    private final com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService;
 
     /**
      * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario* @param inventoryService servicio de inventario
      * @param userRepository repositorio de usuarios
      */
     @Autowired
-    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService) {
+    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService, com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService) {
         this.inventoryService = inventoryService;
         this.userRepository = userRepository;
         this.productPriceService = productPriceService;
+        this.lowStockNotifierService = lowStockNotifierService;
     }
 
     /**
@@ -283,5 +285,17 @@ public class InventoryController {
     public ResponseEntity<List<InventoryLowStockDto>> getLowStockAlerts(@RequestParam UUID branchId) {
         java.util.List<InventoryLowStockDto> list = inventoryService.getLowStockAlerts(branchId);
         return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Endpoint para disparar notificaciones manualmente sobre alertas de stock bajo.
+     * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
+     */
+    @PostMapping("/inventory/low-stock-alerts/notify")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<?> triggerLowStockNotifications(Authentication authentication, @RequestParam UUID branchId) {
+        UUID userId = resolveRequesterId(authentication);
+        lowStockNotifierService.notifyLowStock(branchId, userId);
+        return ResponseEntity.accepted().body("Notifications triggered");
     }
 }
