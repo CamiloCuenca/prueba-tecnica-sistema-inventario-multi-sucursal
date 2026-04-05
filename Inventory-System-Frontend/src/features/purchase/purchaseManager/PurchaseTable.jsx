@@ -252,6 +252,8 @@ export default function PurchaseTable() {
               onAction={handleShowDetails}
               actionKey="id"
               actionPayload={(row) => ({ purchaseId: row.id })}
+              searchable
+              searchPlaceholder="Buscar por proveedor, estado o ID"
             />
 
             <TablePaginator

@@ -2,35 +2,15 @@ import React from 'react';
 import { useTransferForm } from './useTransferForm';
 import ProductTransferSelector from './ProductTransferSelector';
 
-/**
- * COMPONENTE: TransferRequestForm
- *
- * Formulario para solicitar una transferencia de productos entre sucursales.
- *
- * PRINCIPIO DE AUTONOMÍA OPERATIVA:
- * Cada sucursal puede operar de manera autónoma pero colaborar con otras sucursales
- * a través de transferencias de inventario. Esto permite:
- * - Control local del inventario de cada sucursal
- * - Colaboración descentralizada sin dependencia de autoridad central
- * - Visibilidad compartida de stock entre sucursales
- * - Transferencias ágiles según necesidades operativas locales
- *
- * FLUJO DE VALIDACIÓN:
- * 1. Origen ≠ Destino (no se puede transferir a la misma sucursal)
- * 2. Al menos un producto debe ser seleccionado
- * 3. Cantidad disponible debe estar dentro del límite
- *
- * RESPONSABILIDADES:
- * - useTransferForm: lógica de estado, validaciones y API
- * - ProductTransferSelector: selección intuitiva de productos
- * - Este componente: composición y flujo visual
- */
+
 export default function TransferRequestForm() {
   const {
     originBranchId,
     setOriginBranchId,
     destinationBranchId,
     setDestinationBranchId,
+    isAdmin,
+    currentBranchId,
     branches,
     originInventory,
     selectedItems,
@@ -44,18 +24,25 @@ export default function TransferRequestForm() {
   } = useTransferForm();
 
   const getDestinationBranchName = (id) => {
-    const branch = branches.find((b) => b.id === id);
+    const branch = branches.find((b) => String(b.id) === String(id));
     return branch?.name || id;
   };
 
   const getOriginBranchName = (id) => {
-    const branch = branches.find((b) => b.id === id);
+    const branch = branches.find((b) => String(b.id) === String(id));
     return branch?.name || id;
   };
 
   const availableDestinations = branches.filter(
-    (b) => b.id !== originBranchId
+    (b) => String(b.id) !== String(originBranchId)
   );
+
+  const userDestinationBranch = branches.find((branch) => String(branch.id) === String(currentBranchId));
+  const destinationOptions = isAdmin
+    ? availableDestinations
+    : currentBranchId
+      ? [{ id: currentBranchId, name: userDestinationBranch?.name || currentBranchId }]
+      : [];
 
   if (loadingBranches) {
     return (
@@ -124,11 +111,11 @@ export default function TransferRequestForm() {
           <select
             value={destinationBranchId}
             onChange={(e) => setDestinationBranchId(e.target.value)}
-            disabled={!originBranchId || loadingBranches}
+            disabled={!isAdmin || !originBranchId || loadingBranches}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 disabled:bg-gray-100"
           >
             <option value="">-- Selecciona sucursal --</option>
-            {availableDestinations.map((branch) => (
+            {destinationOptions.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name || branch.id}
               </option>

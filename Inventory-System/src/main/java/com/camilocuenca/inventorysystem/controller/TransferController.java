@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.dto.transfer.TransferListDto;
 import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.UserRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.TransferService;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -161,11 +162,11 @@ public class TransferController {
      * Cualquier usuario autenticado puede consultar; la validación de permisos se hace en el service.
      */
     @GetMapping("/transfers/incoming")
-    public ResponseEntity<?> getIncomingTransfers(Authentication authentication, @RequestParam(required = false) UUID branchId, Pageable pageable) {
+    public ResponseEntity<?> getIncomingTransfers(Authentication authentication, @RequestParam(required = false) UUID branchId, @RequestParam(required = false) TransferStatus status, Pageable pageable) {
         UUID requesterId = resolveRequesterId(authentication);
         if (requesterId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
         try {
-            Page<TransferListDto> page = transferService.incomingTransfers(requesterId, branchId, pageable);
+            Page<TransferListDto> page = transferService.incomingTransfers(requesterId, branchId, status, pageable);
             return ResponseEntity.ok(page);
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
@@ -176,11 +177,11 @@ public class TransferController {
      * Lista transferencias salientes activas para la sucursal del usuario (o para la branchId si es ADMIN).
      */
     @GetMapping("/transfers/outgoing")
-    public ResponseEntity<?> getOutgoingTransfers(Authentication authentication, @RequestParam(required = false) UUID branchId, Pageable pageable) {
+    public ResponseEntity<?> getOutgoingTransfers(Authentication authentication, @RequestParam(required = false) UUID branchId, @RequestParam(required = false) TransferStatus status, Pageable pageable) {
         UUID requesterId = resolveRequesterId(authentication);
         if (requesterId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
         try {
-            Page<TransferListDto> page = transferService.outgoingTransfers(requesterId, branchId, pageable);
+            Page<TransferListDto> page = transferService.outgoingTransfers(requesterId, branchId, status, pageable);
             return ResponseEntity.ok(page);
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());

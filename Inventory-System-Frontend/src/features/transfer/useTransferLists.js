@@ -21,13 +21,21 @@ const normalizePage = (data, page) => ({
 });
 
 const getErrorMessage = (err, fallbackMessage) => {
+  if (err?.response?.status === 401) {
+    return 'No autorizado (401). Tu sesion puede haber expirado o tu rol no tiene permisos para este endpoint.';
+  }
   if (typeof err === 'string') return err;
   if (err?.message) return err.message;
   if (err?.error) return err.error;
   return fallbackMessage;
 };
 
-export const useTransferLists = () => {
+export const useTransferLists = ({
+  branchId,
+  incomingStatus,
+  outgoingStatus,
+  enabled = true,
+} = {}) => {
   const [incomingPage, setIncomingPage] = useState(0);
   const [outgoingPage, setOutgoingPage] = useState(0);
 
@@ -44,10 +52,22 @@ export const useTransferLists = () => {
   const [outgoingError, setOutgoingError] = useState(null);
 
   const loadIncoming = async (page = incomingPage) => {
+    if (!enabled) {
+      setIncomingTransfers([]);
+      setIncomingPageInfo(defaultPageInfo);
+      return;
+    }
+
     setIncomingLoading(true);
     setIncomingError(null);
     try {
-      const data = await getIncomingTransfers({ page, size: 10, sort: ['createdAt,desc'] });
+      const data = await getIncomingTransfers({
+        page,
+        size: 10,
+        sort: ['createdAt,desc'],
+        branchId,
+        status: incomingStatus,
+      });
       const normalized = normalizePage(data, page);
       setIncomingTransfers(normalized.content);
       setIncomingPageInfo(normalized.pageInfo);
@@ -61,10 +81,22 @@ export const useTransferLists = () => {
   };
 
   const loadOutgoing = async (page = outgoingPage) => {
+    if (!enabled) {
+      setOutgoingTransfers([]);
+      setOutgoingPageInfo(defaultPageInfo);
+      return;
+    }
+
     setOutgoingLoading(true);
     setOutgoingError(null);
     try {
-      const data = await getOutgoingTransfers({ page, size: 10, sort: ['createdAt,desc'] });
+      const data = await getOutgoingTransfers({
+        page,
+        size: 10,
+        sort: ['createdAt,desc'],
+        branchId,
+        status: outgoingStatus,
+      });
       const normalized = normalizePage(data, page);
       setOutgoingTransfers(normalized.content);
       setOutgoingPageInfo(normalized.pageInfo);
@@ -78,12 +110,27 @@ export const useTransferLists = () => {
   };
 
   useEffect(() => {
+    if (!enabled) return;
     loadIncoming(incomingPage);
-  }, [incomingPage]);
+  }, [incomingPage, branchId, incomingStatus, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     loadOutgoing(outgoingPage);
-  }, [outgoingPage]);
+  }, [outgoingPage, branchId, outgoingStatus, enabled]);
+
+  useEffect(() => {
+    setIncomingPage(0);
+    setOutgoingPage(0);
+  }, [branchId]);
+
+  useEffect(() => {
+    setIncomingPage(0);
+  }, [incomingStatus]);
+
+  useEffect(() => {
+    setOutgoingPage(0);
+  }, [outgoingStatus]);
 
   return {
     incomingTransfers,

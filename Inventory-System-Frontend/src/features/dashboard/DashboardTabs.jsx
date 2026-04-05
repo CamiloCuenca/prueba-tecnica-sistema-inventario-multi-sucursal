@@ -3,7 +3,7 @@ import ActiveTransfersImpactDashboard from "./ActiveTransfersImpactDashboard";
 import BranchPerformanceDashboard from "./branchPerformance/BranchPerformanceDashboard";
 import InventoryRotationDashboard from "./InventoryRotationDashboard";
 import SalesVolumeDashboard from "./SalesVolumeDashboard";
-import { decodeJWT } from "../../utils/jwt";
+import { getRoleFromToken } from "../../utils/tokenUtils";
 import { useInventoryBehavior } from "./useInventoryBehavior";
 
 export default function DashboardTabs() {
@@ -73,8 +73,5 @@ export default function DashboardTabs() {
 }
 
 function getRole() {
-  const token = sessionStorage.getItem("token");
-  if (!token) return null;
-  const payload = decodeJWT(token);
-  return payload?.role || null;
+  return getRoleFromToken();
 }

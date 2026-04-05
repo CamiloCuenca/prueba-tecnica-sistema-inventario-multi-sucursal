@@ -89,34 +89,6 @@ export default function InventoryRotationDashboard({ data, loading }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Table - Products Without Sales */}
-      <div>
-        <h2 className="text-lg font-bold mb-2">Productos sin ventas</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border rounded-lg">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 border-b">Producto</th>
-                <th className="px-4 py-2 border-b">SKU</th>
-                <th className="px-4 py-2 border-b">Stock actual</th>
-              </tr>
-            </thead>
-            <tbody>
-              {zeroSales.map((p) => (
-                <tr key={p.productId} className="bg-red-50 text-red-700">
-                  <td className="px-4 py-2 border-b font-semibold">{p.productName}</td>
-                  <td className="px-4 py-2 border-b">{p.sku}</td>
-                  <td className="px-4 py-2 border-b">{numberFormat(p.currentStock)}</td>
-                </tr>
-              ))}
-              {zeroSales.length === 0 && (
-                <tr><td colSpan={3} className="text-center py-4 text-gray-500">Todos los productos tienen ventas</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Insights Section */}
       <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
         <span className="font-semibold">{percentNoSales}%</span> de los productos no tuvieron ventas en el periodo seleccionado.

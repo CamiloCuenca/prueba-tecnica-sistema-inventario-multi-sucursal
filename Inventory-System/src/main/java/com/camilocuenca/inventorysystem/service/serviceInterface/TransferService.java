@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.dto.transfer.TransferListDto;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferComplianceDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 
 import java.util.UUID;
 
@@ -79,10 +80,11 @@ public interface TransferService {
      *
      * @param requesterUserId UUID del usuario que realiza la consulta (resuelto desde JWT)
      * @param branchId (opcional) UUID de la sucursal a consultar (solo para ADMIN)
+     * @param status (opcional) estado de la transferencia a filtrar
      * @param pageable paginación
      * @return página de TransferListDto
      */
-    Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable);
+    Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, TransferStatus status, Pageable pageable);
 
     /**
      * Lista paginada de transferencias activas (no cerradas) cuyo origen es la sucursal del usuario.
@@ -90,10 +92,11 @@ public interface TransferService {
      *
      * @param requesterUserId UUID del usuario que realiza la consulta (resuelto desde JWT)
      * @param branchId (opcional) UUID de la sucursal a consultar (solo para ADMIN)
+     * @param status (opcional) estado de la transferencia a filtrar
      * @param pageable paginación
      * @return página de TransferListDto
      */
-    Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable);
+    Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, TransferStatus status, Pageable pageable);
 
     /**
      * Obtiene el detalle completo de una transferencia por su id.

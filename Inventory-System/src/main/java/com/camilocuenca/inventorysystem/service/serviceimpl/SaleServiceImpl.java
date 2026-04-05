@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.repository.*;
 import com.camilocuenca.inventorysystem.service.serviceInterface.SaleService;
 import com.camilocuenca.inventorysystem.exceptions.InsufficientStockException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,6 +34,7 @@ public class SaleServiceImpl implements SaleService {
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
     public SaleServiceImpl(SaleRepository saleRepository,
@@ -41,7 +43,8 @@ public class SaleServiceImpl implements SaleService {
                            ProductRepository productRepository,
                            BranchRepository branchRepository,
                            UserRepository userRepository,
-                           InventoryTransactionRepository inventoryTransactionRepository) {
+                           InventoryTransactionRepository inventoryTransactionRepository,
+                           ApplicationEventPublisher eventPublisher) {
         this.saleRepository = saleRepository;
         this.saleDetailRepository = saleDetailRepository;
         this.inventoryRepository = inventoryRepository;
@@ -49,6 +52,7 @@ public class SaleServiceImpl implements SaleService {
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -176,6 +180,13 @@ public class SaleServiceImpl implements SaleService {
         resp.setDiscountTotal(discountTotal);
         resp.setCreatedAt(saved.getCreatedAt());
         resp.setItems(responseItems);
+
+        // Publicar evento para chequear stock después de commit
+        try {
+            eventPublisher.publishEvent(new com.camilocuenca.inventorysystem.events.LowStockCheckEvent(branch.getId(), user.getId()));
+        } catch (Exception e) {
+            // no fallar la transacción por problemas de publicación de evento
+        }
 
         return resp;
     }

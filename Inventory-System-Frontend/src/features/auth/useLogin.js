@@ -13,6 +13,7 @@ export function useLogin() {
     // Guarda el token en SessionStorage
     if (data.token) {
       sessionStorage.setItem("token", data.token);
+      window.dispatchEvent(new Event("auth-token-updated"));
     }
     setLoading(false);
     return data;

@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.repository.TransferAlertRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.TransferService;
 import com.camilocuenca.inventorysystem.exceptions.InsufficientStockException;
 import com.camilocuenca.inventorysystem.Enums.Role;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -34,9 +35,6 @@ public class TransferServiceImpl implements TransferService {
     private final InventoryRepository inventoryRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final TransferAlertRepository transferAlertRepository;
-
-    // Estados considerados "activos" en el ciclo de transferencia
-    private static final List<String> ACTIVE_STATES = Arrays.asList("PENDING", "PREPARING", "SHIPPED", "PARTIALLY_SHIPPED", "IN_TRANSIT", "PARTIALLY_RECEIVED");
 
     @Autowired
     public TransferServiceImpl(TransferRepository transferRepository,
@@ -73,7 +71,7 @@ public class TransferServiceImpl implements TransferService {
      *
      * @param req DTO con la información de la solicitud (originBranchId, destinationBranchId, items)
      * @param requesterUserId UUID del usuario que realiza la solicitud (resuelto desde el JWT)
-     * @return
+     * @return TransferResponseDto con la transferencia creada y sus items (sin detalles financieros)
      */
     @Override
     @Transactional
@@ -139,7 +137,7 @@ public class TransferServiceImpl implements TransferService {
         Transfer t = new Transfer();
         t.setOriginBranch(origin);
         t.setDestinationBranch(destination);
-        t.setStatus("PENDING");
+        t.setStatus(TransferStatus.PENDING);
         t.setCreatedAt(Instant.now());
         t.setCreatedBy(requester);
 
@@ -163,7 +161,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(saved.getId());
         resp.setOriginBranchId(origin.getId());
         resp.setDestinationBranchId(destination.getId());
-        resp.setStatus(saved.getStatus());
+        resp.setStatus(saved.getStatus() != null ? saved.getStatus().name() : null);
         resp.setCreatedAt(saved.getCreatedAt());
         resp.setShippedAt(saved.getShippedAt());
         resp.setDispatchedAt(saved.getDispatchedAt());
@@ -188,7 +186,7 @@ public class TransferServiceImpl implements TransferService {
      * @param transferId id de la transferencia a preparar
      * @param body DTO con las cantidades confirmadas por producto
      * @param requesterUserId UUID del usuario que confirma (resuelto desde JWT)
-     * @return
+     * @return TransferResponseDto con el estado actualizado después de la preparación
      */
     @Override
     @Transactional
@@ -278,11 +276,11 @@ public class TransferServiceImpl implements TransferService {
         }
 
         if (allPrepared) {
-            transfer.setStatus("SHIPPED");
+            transfer.setStatus(TransferStatus.SHIPPED);
             // Si quedó completamente preparado, marcar fecha de envío
             transfer.setShippedAt(Instant.now());
         } else {
-            transfer.setStatus("PARTIALLY_SHIPPED");
+            transfer.setStatus(TransferStatus.PARTIALLY_SHIPPED);
             // No setear shippedAt para envíos parciales aquí: el envío físico (dispatch) lo marcará
         }
 
@@ -294,7 +292,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(transfer.getId());
         resp.setOriginBranchId(transfer.getOriginBranch().getId());
         resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());
@@ -355,7 +353,7 @@ public class TransferServiceImpl implements TransferService {
         if (body.getRouteCost() != null) transfer.setRouteCost(body.getRouteCost());
 
         // Cambiar estado y marcar shippedAt si aún no está
-        transfer.setStatus("EN_TRANSITO");
+        transfer.setStatus(TransferStatus.IN_TRANSIT);
         if (transfer.getShippedAt() == null) {
             transfer.setShippedAt(Instant.now());
         }
@@ -390,7 +388,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(transfer.getId());
         resp.setOriginBranchId(transfer.getOriginBranch() != null ? transfer.getOriginBranch().getId() : null);
         resp.setDestinationBranchId(transfer.getDestinationBranch() != null ? transfer.getDestinationBranch().getId() : null);
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());
@@ -524,7 +522,6 @@ public class TransferServiceImpl implements TransferService {
 
         // Determinar estado global considerando todas las líneas del transfer
         boolean anyReceived = false;
-        boolean anyMissingOverall = false;
         boolean allFullyReceived = true;
         for (TransferDetail td : details) {
             java.math.BigDecimal conf = td.getQuantityConfirmed() != null ? td.getQuantityConfirmed() : td.getQuantity();
@@ -533,16 +530,15 @@ public class TransferServiceImpl implements TransferService {
             if (rec.compareTo(java.math.BigDecimal.ZERO) > 0) anyReceived = true;
             if (conf == null) conf = java.math.BigDecimal.ZERO;
             if (rec.compareTo(conf) < 0) {
-                anyMissingOverall = true;
                 allFullyReceived = false;
             }
         }
 
         if (anyReceived) {
             if (allFullyReceived) {
-                transfer.setStatus("RECEIVED");
+                transfer.setStatus(TransferStatus.RECEIVED);
             } else {
-                transfer.setStatus("PARTIALLY_RECEIVED");
+                transfer.setStatus(TransferStatus.PARTIALLY_RECEIVED);
             }
             transfer.setReceivedAt(Instant.now());
             // Calcular minutos reales de tránsito si dispatchedAt existe
@@ -556,7 +552,7 @@ public class TransferServiceImpl implements TransferService {
         // Construir respuesta
         TransferResponseDto resp = new TransferResponseDto();
         resp.setId(transfer.getId());
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setOriginBranchId(transfer.getOriginBranch().getId());
         resp.setDestinationBranchId(transfer.getDestinationBranch().getId());
         resp.setReceivedAt(transfer.getReceivedAt());
@@ -567,7 +563,7 @@ public class TransferServiceImpl implements TransferService {
     }
 
     @Override
-    public Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable) {
+    public Page<TransferListDto> incomingTransfers(UUID requesterUserId, UUID branchId, com.camilocuenca.inventorysystem.Enums.TransferStatus status, Pageable pageable) {
         User requester = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario solicitante no encontrado"));
 
@@ -581,7 +577,13 @@ public class TransferServiceImpl implements TransferService {
             targetBranchId = requester.getBranch().getId();
         }
 
-        Page<Transfer> page = transferRepository.findActiveByDestinationBranchId(targetBranchId, ACTIVE_STATES, pageable);
+        Page<Transfer> page;
+        if (status == null) {
+            // si no se provee estado, retornar todas las transferencias de la sucursal
+            page = transferRepository.findByDestinationBranchId(targetBranchId, pageable);
+        } else {
+            page = transferRepository.findByDestinationBranchIdAndStatus(targetBranchId, status, pageable);
+        }
         List<TransferListDto> dtos = page.stream().map(t -> {
             TransferListDto dto = new TransferListDto();
             dto.setId(t.getId());
@@ -589,7 +591,7 @@ public class TransferServiceImpl implements TransferService {
             dto.setDestinationBranchId(t.getDestinationBranch().getId());
             dto.setOriginBranchName(t.getOriginBranch().getName());
             dto.setDestinationBranchName(t.getDestinationBranch().getName());
-            dto.setStatus(t.getStatus());
+            dto.setStatus(t.getStatus() != null ? t.getStatus().name() : null);
             dto.setCreatedAt(t.getCreatedAt());
             dto.setShippedAt(t.getShippedAt());
             dto.setDispatchedAt(t.getDispatchedAt());
@@ -603,7 +605,7 @@ public class TransferServiceImpl implements TransferService {
     }
 
     @Override
-    public Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, Pageable pageable) {
+    public Page<TransferListDto> outgoingTransfers(UUID requesterUserId, UUID branchId, com.camilocuenca.inventorysystem.Enums.TransferStatus status, Pageable pageable) {
         User requester = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario solicitante no encontrado"));
 
@@ -617,7 +619,12 @@ public class TransferServiceImpl implements TransferService {
             targetBranchId = requester.getBranch().getId();
         }
 
-        Page<Transfer> page = transferRepository.findActiveByOriginBranchId(targetBranchId, ACTIVE_STATES, pageable);
+        Page<Transfer> page;
+        if (status == null) {
+            page = transferRepository.findByOriginBranchId(targetBranchId, pageable);
+        } else {
+            page = transferRepository.findByOriginBranchIdAndStatus(targetBranchId, status, pageable);
+        }
         List<TransferListDto> dtos = page.stream().map(t -> {
             TransferListDto dto = new TransferListDto();
             dto.setId(t.getId());
@@ -625,7 +632,7 @@ public class TransferServiceImpl implements TransferService {
             dto.setDestinationBranchId(t.getDestinationBranch().getId());
             dto.setOriginBranchName(t.getOriginBranch().getName());
             dto.setDestinationBranchName(t.getDestinationBranch().getName());
-            dto.setStatus(t.getStatus());
+            dto.setStatus(t.getStatus() != null ? t.getStatus().name() : null);
             dto.setCreatedAt(t.getCreatedAt());
             dto.setShippedAt(t.getShippedAt());
             dto.setDispatchedAt(t.getDispatchedAt());
@@ -638,37 +645,10 @@ public class TransferServiceImpl implements TransferService {
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
-    private double haversineKm(Double lat1, Double lon1, Double lat2, Double lon2) {
-        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return -1d;
-        final int R = 6371; // Radius of the earth in km
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    private int estimateMinutesFromDistanceKm(double km, com.camilocuenca.inventorysystem.Enums.RoutePriority priority) {
-        // Velocidades media estimadas por prioridad (km/h)
-        double speedKmh = 50; // default
-        if (priority == null) priority = com.camilocuenca.inventorysystem.Enums.RoutePriority.MEDIUM;
-        switch (priority) {
-            case URGENT:
-                speedKmh = 80; break;
-            case HIGH:
-                speedKmh = 60; break;
-            case MEDIUM:
-                speedKmh = 45; break;
-            case LOW:
-                speedKmh = 30; break;
-        }
-        if (km < 0) return -1;
-        double hours = km / speedKmh;
-        return (int) Math.max(1, Math.round(hours * 60));
-    }
-
+    /**
+     * Detalle de la transferencia para la sucursal origen (manager).
+     * Se permite ver el detalle completo incluyendo precios y márgenes.
+     */
     @Override
     public TransferResponseDto getTransferDetail(UUID requesterUserId, UUID transferId) {
         Transfer transfer = transferRepository.findById(transferId)
@@ -692,7 +672,7 @@ public class TransferServiceImpl implements TransferService {
         resp.setId(transfer.getId());
         resp.setOriginBranchId(transfer.getOriginBranch() != null ? transfer.getOriginBranch().getId() : null);
         resp.setDestinationBranchId(transfer.getDestinationBranch() != null ? transfer.getDestinationBranch().getId() : null);
-        resp.setStatus(transfer.getStatus());
+        resp.setStatus(transfer.getStatus() != null ? transfer.getStatus().name() : null);
         resp.setCreatedAt(transfer.getCreatedAt());
         resp.setShippedAt(transfer.getShippedAt());
         resp.setDispatchedAt(transfer.getDispatchedAt());

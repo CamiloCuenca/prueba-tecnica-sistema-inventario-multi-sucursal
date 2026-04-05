@@ -19,6 +19,8 @@ import jakarta.validation.Valid;
 import com.camilocuenca.inventorysystem.dto.inventory.SalePriceUpdateDto;
 import com.camilocuenca.inventorysystem.dto.product.ProductPriceDto;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 
 import java.util.Collection;
 import java.util.List;
@@ -32,16 +34,18 @@ public class InventoryController {
     private final InventoryService inventoryService;
     private final UserRepository userRepository;
     private final ProductPriceService productPriceService;
+    private final com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService;
 
     /**
      * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario* @param inventoryService servicio de inventario
      * @param userRepository repositorio de usuarios
      */
     @Autowired
-    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService) {
+    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService, com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService) {
         this.inventoryService = inventoryService;
         this.userRepository = userRepository;
         this.productPriceService = productPriceService;
+        this.lowStockNotifierService = lowStockNotifierService;
     }
 
     /**
@@ -212,8 +216,10 @@ public class InventoryController {
     /**
      * Endpoint para listar los nombres e IDs de todas las sucursales.
      * Cualquier usuario autenticado puede consultar esta lista.
+     *
+     * Nota: se mapea a `/api/branches/names` para no colisionar con el CRUD de `Branch` en `/api/branches`.
      */
-    @GetMapping("/branches")
+    @GetMapping("/branches/names")
     public ResponseEntity<java.util.List<BranchDto>> getAllBranches(Authentication authentication) {
         UUID requesterId = resolveRequesterId(authentication);
         if (requesterId == null) {
@@ -268,5 +274,28 @@ public class InventoryController {
     public ResponseEntity<Void> deletePrice(@PathVariable UUID priceId) {
         productPriceService.deletePrice(priceId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Endpoint para obtener alertas de stock bajo para una sucursal.
+     * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
+     */
+    @GetMapping("/inventory/low-stock-alerts")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<List<InventoryLowStockDto>> getLowStockAlerts(@RequestParam UUID branchId) {
+        java.util.List<InventoryLowStockDto> list = inventoryService.getLowStockAlerts(branchId);
+        return ResponseEntity.ok(list);
+    }
+
+    /**
+     * Endpoint para disparar notificaciones manualmente sobre alertas de stock bajo.
+     * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
+     */
+    @PostMapping("/inventory/low-stock-alerts/notify")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public ResponseEntity<?> triggerLowStockNotifications(Authentication authentication, @RequestParam UUID branchId) {
+        UUID userId = resolveRequesterId(authentication);
+        lowStockNotifierService.notifyLowStock(branchId, userId);
+        return ResponseEntity.accepted().body("Notifications triggered");
     }
 }

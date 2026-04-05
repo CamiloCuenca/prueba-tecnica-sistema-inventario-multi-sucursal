@@ -5,14 +5,8 @@ import Inventory2Icon from "@mui/icons-material/Inventory2";
 import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Link, useLocation } from "react-router-dom";
-import { decodeJWT } from "../utils/jwt";
-import { LocalGroceryStore, PointOfSale } from "@mui/icons-material";
-
-function getRole() {
-  const token = sessionStorage.getItem("token");
-  const payload = decodeJWT(token);
-  return payload?.role || null;
-}
+import { LocalGroceryStore, PointOfSale, Business, Storefront } from "@mui/icons-material";
+import { useAuth } from "../context/AuthContext";
 
 const baseMenu = [
   {
@@ -43,7 +37,13 @@ const baseMenu = [
     label: "transacciones",
     icon: <SwapHorizIcon fontSize="medium" />,
     to: "/transacciones",
-    roles: ["ADMIN", "MANAGER", , "OPERATOR"],
+    roles: ["ADMIN", "MANAGER", "OPERATOR"],
+  },
+  {
+    label: "Proveedores",
+    icon: <Storefront fontSize="medium" />,
+    to: "/providers",
+    roles: ["ADMIN"],
   },
   {
     label: "Usuarios",
@@ -51,11 +51,17 @@ const baseMenu = [
     to: "/usuarios",
     roles: ["ADMIN"],
   },
+  {
+    label: "Sucursales",
+    icon: <Business fontSize="medium" />,
+    to: "/sucursales",
+    roles: ["ADMIN", "MANAGER"],
+  },
 ];
 
 export default function Sidebar({ collapsed = false }) {
   const location = useLocation();
-  const role = getRole();
+  const { role } = useAuth();
   const menuItems = baseMenu.filter((item) => item.roles.includes(role));
 
   return (

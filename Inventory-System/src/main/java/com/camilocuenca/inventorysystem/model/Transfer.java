@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.math.BigDecimal;
 
 import com.camilocuenca.inventorysystem.Enums.RoutePriority;
+import com.camilocuenca.inventorysystem.Enums.TransferStatus;
 
 /**
  * Entidad Transfer: representa una transferencia de productos entre sucursales.
@@ -47,8 +48,11 @@ public class Transfer {
     @JoinColumn(name = "approved_by")
     private User approvedBy;
 
+    //@Column(name = "status", nullable = false, length = 50)
+    //@Convert(converter = TransferStatusAttributeConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private String status;
+    private TransferStatus status;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")

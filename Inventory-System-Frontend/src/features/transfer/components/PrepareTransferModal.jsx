@@ -1,5 +1,8 @@
+import { useMemo, useState } from 'react';
 import Modal from '../../../components/Modal';
 import { getProductId, getRequestedQuantity, getTransferItems } from '../transferUiUtils';
+
+const normalizeText = (value) => String(value ?? '').toLowerCase();
 
 export default function PrepareTransferModal({
   open,
@@ -13,6 +16,21 @@ export default function PrepareTransferModal({
   success,
   submitting,
 }) {
+  const [search, setSearch] = useState('');
+
+  const filteredItems = useMemo(() => {
+    const normalizedSearch = normalizeText(search).trim();
+    const items = getTransferItems(transfer);
+
+    if (!normalizedSearch) return items;
+
+    return items.filter((item) => {
+      const productId = getProductId(item);
+      const requested = getRequestedQuantity(item);
+      return [productId, requested].some((value) => normalizeText(value).includes(normalizedSearch));
+    });
+  }, [search, transfer]);
+
   return (
     <Modal
       open={open}
@@ -29,6 +47,17 @@ export default function PrepareTransferModal({
           </div>
 
           <form onSubmit={onSubmit} className="space-y-4">
+            <div className="w-full max-w-md">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Buscar</label>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por producto o cantidad"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
             <div className="overflow-x-auto border rounded-lg">
               <table className="w-full text-sm">
                 <thead className="bg-gray-100">
@@ -40,7 +69,7 @@ export default function PrepareTransferModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {getTransferItems(transfer).map((item) => {
+                  {filteredItems.map((item) => {
                     const productId = getProductId(item);
                     const requested = getRequestedQuantity(item);
                     const confirmed = Number(confirmedItems[productId] ?? requested);
@@ -71,6 +100,13 @@ export default function PrepareTransferModal({
                       </tr>
                     );
                   })}
+                  {filteredItems.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
+                        No hay productos que coincidan con la búsqueda.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
