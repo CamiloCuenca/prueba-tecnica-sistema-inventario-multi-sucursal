@@ -4,9 +4,15 @@ import { getBranchIdFromToken, getRoleFromToken } from '../../utils/tokenUtils';
 import { decodeJWT } from '../../utils/jwt';
 
 const normalizeBranches = (rows = []) => {
-  return rows
+  const sourceRows = Array.isArray(rows)
+    ? rows
+    : Array.isArray(rows?.content)
+      ? rows.content
+      : [];
+
+  return sourceRows
     .map((row) => ({
-      id: row?.id || row?.branchId || row?.branch_id || row?.uuid || '',
+      id: String(row?.id || row?.branchId || row?.branch_id || row?.uuid || ''),
       name: row?.name || row?.branchName || row?.branch_name || 'Sucursal sin nombre',
     }))
     .filter((branch) => branch.id);
@@ -54,7 +60,7 @@ export const useTransferForm = () => {
       setError(null);
       try {
         const data = await getAllBranches();
-        setBranches(normalizeBranches(Array.isArray(data) ? data : []));
+        setBranches(normalizeBranches(data));
       } catch (err) {
         setError(getErrorMessage(err, 'Error al cargar sucursales'));
         setBranches([]);

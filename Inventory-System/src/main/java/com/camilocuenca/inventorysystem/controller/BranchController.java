@@ -41,7 +41,6 @@ public class BranchController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<?> listBranches(Pageable pageable) {
         Page<BranchResponseDto> page = branchService.listBranches(pageable);
         return ResponseEntity.ok(page);
