@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Card from "../../components/Card";
 import { decodeJWT } from "../../utils/jwt";
 import { useInventory } from "../inventory/useInventory";
 import SalesVolumeBranchSelector from "./components/SalesVolumeBranchSelector";
 import { useActiveTransfersImpact } from "./useActiveTransfersImpact";
+
+const normalizeText = (value) => String(value ?? '').toLowerCase();
 
 function groupProductsInTransit(transfers) {
   const grouped = new Map();
@@ -35,6 +37,7 @@ export default function ActiveTransfersImpactDashboard() {
   const { handleBranches, loading: branchesLoading, error: branchesError } = useInventory();
   const [branches, setBranches] = useState([]);
   const [selectedBranchId, setSelectedBranchId] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     handleBranches().then((res) => {
@@ -61,6 +64,28 @@ export default function ActiveTransfersImpactDashboard() {
 
   const { data, loading, error } = useActiveTransfersImpact(selectedBranchId);
 
+  const groupedProducts = useMemo(() => {
+    const base = groupProductsInTransit(data ?? []);
+    const normalizedSearch = normalizeText(search).trim();
+
+    if (!normalizedSearch) return base;
+
+    return base.filter((item) =>
+      normalizeText(item.productId).includes(normalizedSearch) ||
+      normalizeText(item.totalQuantity).includes(normalizedSearch)
+    );
+  }, [data, search]);
+
+  const filteredTransfers = useMemo(() => {
+    const normalizedSearch = normalizeText(search).trim();
+    if (!normalizedSearch) return data ?? [];
+
+    return (data ?? []).filter((transfer) =>
+      [transfer.transferId, transfer.status, transfer.originBranchName, transfer.originBranchId, transfer.destinationBranchName, transfer.destinationBranchId]
+        .some((value) => normalizeText(value).includes(normalizedSearch))
+    );
+  }, [data, search]);
+
   if (loading) {
     return <div className="w-full py-8 text-center text-black">Cargando transferencias activas...</div>;
   }
@@ -73,8 +98,6 @@ export default function ActiveTransfersImpactDashboard() {
     return <div className="w-full py-8 text-center text-black">No hay transferencias activas para mostrar.</div>;
   }
 
-  const groupedProducts = groupProductsInTransit(data);
-
   return (
     <div className="space-y-8 text-black">
       <SalesVolumeBranchSelector
@@ -84,6 +107,17 @@ export default function ActiveTransfersImpactDashboard() {
         selectedBranchId={selectedBranchId}
         onSelect={setSelectedBranchId}
       />
+
+      <div className="w-full max-w-md">
+        <label className="mb-1 block text-sm font-medium text-black">Buscar</label>
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Buscar por transferencia, origen, destino o producto"
+          className="w-full rounded border border-border bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="border border-border bg-white p-4 text-black">
@@ -118,7 +152,7 @@ export default function ActiveTransfersImpactDashboard() {
         <Card className="border border-border bg-white p-4 text-black">
           <h2 className="mb-4 text-lg font-bold text-black">Transferencias activas</h2>
           <div className="space-y-3">
-            {data.map((transfer) => (
+            {filteredTransfers.map((transfer) => (
               <div key={transfer.transferId} className="rounded-lg border border-border bg-white p-3">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-semibold break-all">{transfer.transferId}</span>
@@ -137,6 +171,11 @@ export default function ActiveTransfersImpactDashboard() {
                 </div>
               </div>
             ))}
+            {filteredTransfers.length === 0 && (
+              <div className="rounded-lg border border-border bg-white p-3 text-center text-black">
+                No hay transferencias que coincidan con la búsqueda.
+              </div>
+            )}
           </div>
         </Card>
       </div>

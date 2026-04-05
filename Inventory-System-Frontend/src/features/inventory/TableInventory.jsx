@@ -99,7 +99,13 @@ export default function TableInventory({ branchId }) {
 
   return (
     <div>
-      <Table data={inventory} onAction={handleShowDetails} branchId={branchId} />
+      <Table
+        data={inventory}
+        onAction={handleShowDetails}
+        branchId={branchId}
+        searchable
+        searchPlaceholder="Buscar por producto, SKU o categoría"
+      />
       <TablePaginator
         page={page}
         totalPages={totalPages}
