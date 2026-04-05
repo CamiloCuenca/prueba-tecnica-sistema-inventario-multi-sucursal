@@ -13,9 +13,15 @@ import TransfersPage from '../pages/TransfersPage';
 import UsersPage from '../pages/UsersPage';
 import BranchesPage from '../pages/BranchesPage';
 import GlobalStockAlerts from "../components/GlobalStockAlerts";
+import ProvidersPage from "../pages/ProvidersPage";
+import ProviderFormPage from "../pages/ProviderFormPage";
+import ProviderDetailPage from "../pages/ProviderDetailPage";
+import ProviderProductsPage from "../pages/ProviderProductsPage";
+import Toast from "../components/Toast";
+import { useAuth } from "../context/AuthContext";
 
 function ProtectedRoute({ children }) {
-  const token = sessionStorage.getItem("token");
+  const { token } = useAuth();
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -27,9 +33,10 @@ function ProtectedRoute({ children }) {
 function MainLayout({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const navigate = useNavigate();
+  const { clearAuth } = useAuth();
 
   const handleLogout = () => {
-    sessionStorage.removeItem("token");
+    clearAuth();
     navigate("/login", { replace: true });
   };
 
@@ -67,11 +74,12 @@ function MainLayout({ children }) {
 
 const AppRoutes = () => (
   <Router>
+    <Toast />
     <GlobalStockAlerts />
     <Routes>
       <Route
         path="/login"
-        element={sessionStorage.getItem("token") ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+        element={sessionStorage.getItem("token") || sessionStorage.getItem("authToken") ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
       <Route
         path="/dashboard"
@@ -131,6 +139,61 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <MainLayout>
               <UsersPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/providers"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ProvidersPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/providers/new"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ProviderFormPage mode="create" />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/providers/:id/edit"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ProviderFormPage mode="edit" />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/providers/:id/products"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ProviderProductsPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/providers/:id"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ProviderDetailPage />
             </MainLayout>
           </ProtectedRoute>
         }
