@@ -77,13 +77,13 @@ export default function TableInventory({ branchId }) {
       const product = await handleProducts({ branchId, productId });
       console.log('Respuesta producto', product);
       if (!product) {
-        setProductError("No se encontró el producto o la respuesta está vacía.");
+        setProductError("No se encontraron detalles para este producto.");
         setSelectedProduct(null);
       } else {
         setSelectedProduct(product);
       }
     } catch (err) {
-      setProductError("Error al obtener los detalles del producto");
+      setProductError("No se pudieron cargar los detalles del producto. Intente de nuevo más tarde.");
       setSelectedProduct(null);
     } finally {
       setProductLoading(false);
