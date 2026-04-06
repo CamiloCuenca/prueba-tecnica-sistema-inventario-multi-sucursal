@@ -30,3 +30,26 @@ export const getProduct = async ({ branchId, productId }) => {
   return response.data;
 };
 
+// Importar productos desde CSV (POST /api/products/import)
+export const importProductsFromCsv = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/api/products/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+// Obtener plantilla CSV para importación (GET /api/products/import/template)
+export const getCsvTemplate = async () => {
+  const response = await api.get('/api/products/import/template', {
+    headers: {
+      'Accept': 'text/plain',
+    },
+    responseType: 'blob',
+  });
+  return response.data;
+};
+

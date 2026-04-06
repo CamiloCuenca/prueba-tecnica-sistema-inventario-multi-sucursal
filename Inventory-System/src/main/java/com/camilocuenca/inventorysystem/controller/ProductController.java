@@ -26,6 +26,7 @@ public class ProductController {
         this.productService = productService;
     }
 
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createProduct(@Valid @RequestBody ProductDto dto) {
