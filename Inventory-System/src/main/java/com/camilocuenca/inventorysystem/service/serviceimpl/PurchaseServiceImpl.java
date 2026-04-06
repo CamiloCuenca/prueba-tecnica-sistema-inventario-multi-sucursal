@@ -20,6 +20,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.camilocuenca.inventorysystem.auditing.Auditable;
+
 @Service
 public class PurchaseServiceImpl implements PurchaseService {
 
@@ -48,6 +50,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private ProviderRepository providerRepository;
 
     @Override
+    @Auditable(accion = "createPurchase")
     @Transactional
     public PurchaseResponseDto createPurchase(UUID requesterUserId, PurchaseCreateDto dto) {
         if (dto.getItems() == null || dto.getItems().isEmpty()) {
@@ -122,6 +125,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     }
 
     @Override
+    @Auditable(accion = "receivePurchase")
     @Transactional
     public PurchaseResponseDto receivePurchase(UUID requesterUserId, UUID purchaseId, PurchaseReceiveDto dto) {
         Purchase purchase = purchaseRepository.findById(purchaseId)
@@ -309,4 +313,3 @@ public class PurchaseServiceImpl implements PurchaseService {
         return dto;
     }
 }
-

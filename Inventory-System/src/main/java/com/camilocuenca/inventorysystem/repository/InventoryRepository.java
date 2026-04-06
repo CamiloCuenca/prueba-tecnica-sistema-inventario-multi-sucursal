@@ -44,9 +44,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
             "p.id, p.name, p.sku, " +
             "CAST(i.quantity AS integer), CAST(COALESCE(i.minStock, 0) AS integer), " +
             "(CAST(COALESCE(i.minStock, 0) AS integer) - CAST(i.quantity AS integer)), " +
-            "NULL, p.provider.name, " +
+            "NULL, (select min(pr2.name) from p.providers pr2), " +
             "CASE WHEN i.quantity = 0 THEN 'CRÍTICO' WHEN (i.quantity * 2) <= COALESCE(i.minStock, 0) THEN 'ALTO' ELSE 'MEDIO' END) " +
-            "FROM Inventory i JOIN i.product p LEFT JOIN p.provider pr WHERE i.branch.id = :branchId AND COALESCE(i.minStock,0) >= i.quantity AND p IS NOT NULL ORDER BY " +
+            "FROM Inventory i JOIN i.product p WHERE i.branch.id = :branchId AND COALESCE(i.minStock,0) >= i.quantity AND p IS NOT NULL ORDER BY " +
             "CASE WHEN i.quantity = 0 THEN 0 WHEN (i.quantity * 2) <= COALESCE(i.minStock,0) THEN 1 ELSE 2 END, i.quantity ASC")
     List<InventoryLowStockDto> findLowStockAlertsByBranch(@Param("branchId") UUID branchId);
 

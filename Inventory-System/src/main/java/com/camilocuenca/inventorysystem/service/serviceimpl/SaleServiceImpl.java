@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import com.camilocuenca.inventorysystem.auditing.Auditable;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -65,6 +67,7 @@ public class SaleServiceImpl implements SaleService {
      * @param req DTO con la información de la venta
      * @return SaleResponseDto con el detalle de la venta creada
      */
+    @Auditable(accion = "createSale")
     @Transactional
     public SaleResponseDto createSale(SaleRequestDto req, UUID requesterUserId) {
         // Validar branch

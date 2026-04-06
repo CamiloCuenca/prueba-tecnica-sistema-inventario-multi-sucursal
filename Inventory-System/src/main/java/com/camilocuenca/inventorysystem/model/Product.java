@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -31,9 +32,19 @@ public class Product {
     @Column(name = "created_at")
     private Instant createdAt;
 
-    // Nueva relación: muchos productos pueden pertenecer a un único proveedor (Provider)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "provider_id")
-    private Provider provider;
+    // Productos pueden estar asociados a múltiples proveedores
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "product_provider",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "provider_id"))
+    private Set<Provider> providers;
+
+    // Ensure createdAt is set when the entity is persisted (portable JPA solution)
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = Instant.now();
+        }
+    }
 
 }

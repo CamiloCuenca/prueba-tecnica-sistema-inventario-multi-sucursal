@@ -176,8 +176,11 @@ export default function POSFeature() {
               type="number"
               min="1"
               max={stock}
-              value={quantity}
-              onChange={e => setQuantity(Number(e.target.value))}
+              value={quantity === 0 ? '' : quantity}
+              onChange={e => {
+                const val = e.target.value;
+                setQuantity(val === '' ? 0 : Number(val));
+              }}
               className="w-full border rounded p-2"
             />
           </div>
@@ -197,8 +200,11 @@ export default function POSFeature() {
               type="number"
               min="0"
               step="0.01"
-              value={price}
-              onChange={e => setPrice(Number(e.target.value))}
+              value={price === 0 ? '' : price}
+              onChange={e => {
+                const val = e.target.value;
+                setPrice(val === '' ? 0 : Number(val));
+              }}
               className="w-full border rounded p-2"
               placeholder="Precio personalizado"
             />
@@ -209,8 +215,11 @@ export default function POSFeature() {
               type="number"
               min="0"
               max="100"
-              value={discount}
-              onChange={e => setDiscount(Number(e.target.value))}
+              value={discount === 0 ? '' : discount}
+              onChange={e => {
+                const val = e.target.value;
+                setDiscount(val === '' ? 0 : Number(val));
+              }}
               className="w-full border rounded p-2"
             />
           </div>
@@ -249,8 +258,11 @@ export default function POSFeature() {
                 type="number"
                 min="0"
                 max="100"
-                value={discountTotal}
-                onChange={e => setDiscountTotal(Number(e.target.value))}
+                value={discountTotal === 0 ? '' : discountTotal}
+                onChange={e => {
+                  const val = e.target.value;
+                  setDiscountTotal(val === '' ? 0 : Number(val));
+                }}
                 className="w-full border rounded p-2"
               />
             </div>

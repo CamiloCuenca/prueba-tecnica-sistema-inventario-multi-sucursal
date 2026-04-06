@@ -1,5 +1,6 @@
 package com.camilocuenca.inventorysystem.service.serviceimpl;
 
+import com.camilocuenca.inventorysystem.auditing.Auditable;
 import com.camilocuenca.inventorysystem.dto.transfer.*;
 import com.camilocuenca.inventorysystem.dto.transfer.TransferReceiveDto;
 import com.camilocuenca.inventorysystem.model.*;
@@ -74,6 +75,7 @@ public class TransferServiceImpl implements TransferService {
      * @return TransferResponseDto con la transferencia creada y sus items (sin detalles financieros)
      */
     @Override
+    @Auditable(accion = "requestTransfer")
     @Transactional
     public TransferResponseDto requestTransfer(TransferRequestDto req, UUID requesterUserId) {
         // Validar usuario solicitante (debe existir)
@@ -189,6 +191,7 @@ public class TransferServiceImpl implements TransferService {
      * @return TransferResponseDto con el estado actualizado después de la preparación
      */
     @Override
+    @Auditable(accion = "prepareTransfer")
     @Transactional
     public TransferResponseDto prepareTransfer(UUID transferId, TransferPrepareDto body, UUID requesterUserId) {
         Transfer transfer = transferRepository.findById(transferId)
@@ -324,6 +327,7 @@ public class TransferServiceImpl implements TransferService {
      *   en cada cambio de estado.
      */
     @Override
+    @Auditable(accion = "dispatchTransfer")
     @Transactional
     public TransferResponseDto dispatchTransfer(UUID transferId, TransferDispatchDto body, UUID requesterUserId) {
         Transfer transfer = transferRepository.findById(transferId)
@@ -407,6 +411,7 @@ public class TransferServiceImpl implements TransferService {
      * @return
      */
     @Override
+    @Auditable(accion = "receiveTransfer")
     @Transactional
     public TransferResponseDto receiveTransfer(UUID transferId, TransferReceiveDto body, UUID requesterUserId) {
         Transfer transfer = transferRepository.findById(transferId)

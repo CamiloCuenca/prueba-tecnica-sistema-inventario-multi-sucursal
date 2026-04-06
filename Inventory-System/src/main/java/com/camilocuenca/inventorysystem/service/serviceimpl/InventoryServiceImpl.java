@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.Inventory;
 import com.camilocuenca.inventorysystem.model.Product;
+import com.camilocuenca.inventorysystem.model.Provider;
 import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.BranchRepository;
 import com.camilocuenca.inventorysystem.repository.InventoryRepository;
@@ -16,6 +17,7 @@ import com.camilocuenca.inventorysystem.repository.UserRepository;
 import com.camilocuenca.inventorysystem.repository.ProductRepository;
 import com.camilocuenca.inventorysystem.repository.ProviderRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.InventoryService;
+import com.camilocuenca.inventorysystem.auditing.Auditable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 
 @Service
 public class InventoryServiceImpl implements InventoryService {
@@ -139,6 +142,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    @Auditable(accion = "updateAverageCost")
     @org.springframework.transaction.annotation.Transactional
     public void updateAverageCost(UUID productId, UUID branchId, java.math.BigDecimal purchaseQuantity, java.math.BigDecimal purchasePrice) {
         if (purchaseQuantity == null || purchasePrice == null) {
@@ -176,6 +180,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    @Auditable(accion = "updateSalePrice")
     @org.springframework.transaction.annotation.Transactional
     public void updateSalePrice(UUID productId, UUID branchId, java.math.BigDecimal salePrice) {
         if (salePrice == null) {
@@ -214,7 +219,11 @@ public class InventoryServiceImpl implements InventoryService {
                 dto.setMinStock(i.getMinStock() != null ? i.getMinStock().intValue() : 0);
                 dto.setDifference(dto.getMinStock() - dto.getCurrentStock());
                 dto.setCategory(null); // category not modeled
-                dto.setSupplier(p.getProvider() != null ? p.getProvider().getName() : null);
+                if (p.getProviders() != null && !p.getProviders().isEmpty()) {
+                    dto.setSupplier(p.getProviders().stream().map(Provider::getName).collect(Collectors.joining(", ")));
+                } else {
+                    dto.setSupplier(null);
+                }
                 // urgency calculation
                 if (dto.getCurrentStock() == 0) dto.setUrgencyLevel("CRÍTICO");
                 else if (dto.getCurrentStock() * 2 <= dto.getMinStock()) dto.setUrgencyLevel("ALTO");

@@ -86,7 +86,9 @@ export default function UsersTabs() {
       setBranchesError(null);
       try {
         const data = await getBranchesForUsers();
-        setBranches(normalizeBranches(Array.isArray(data) ? data : []));
+        // Soporta respuesta paginada { content: [...] } o array plano
+        const branchArr = Array.isArray(data) ? data : (Array.isArray(data.content) ? data.content : []);
+        setBranches(normalizeBranches(branchArr));
       } catch (err) {
         setBranches([]);
         setBranchesError(mapApiError(err, 'No se pudieron cargar las sucursales').message);
