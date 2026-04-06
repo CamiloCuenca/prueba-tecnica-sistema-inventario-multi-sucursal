@@ -23,6 +23,7 @@ export default function Table({
     searchable = false,
     searchPlaceholder = 'Buscar en la tabla',
     searchFields = [],
+    renderActions,
 }) {
     const [search, setSearch] = useState('');
 
@@ -91,24 +92,26 @@ export default function Table({
                                         </td>
                                     ))}
                                     <td className="px-4 py-2 border-b text-sm text-gray-700">
-                                        <button
-                                            title="Ver detalles"
-                                            className="hover:text-primary focus:outline-none"
-                                            onClick={() => {
-                                                if (!onAction) return;
-
-                                                if (typeof actionPayload === 'function') {
-                                                    onAction(actionPayload(row, branchId));
-                                                    return;
-                                                }
-
-                                                onAction({ branchId, [actionKey]: row[actionKey] ?? row.productId ?? row.id });
-                                            }}
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
-                                            </svg>
-                                        </button>
+                                        {renderActions
+                                            ? renderActions(row)
+                                            : (
+                                                <button
+                                                    title="Ver detalles"
+                                                    className="hover:text-primary focus:outline-none"
+                                                    onClick={() => {
+                                                        if (!onAction) return;
+                                                        if (typeof actionPayload === 'function') {
+                                                            onAction(actionPayload(row, branchId));
+                                                            return;
+                                                        }
+                                                        onAction({ branchId, [actionKey]: row[actionKey] ?? row.productId ?? row.id });
+                                                    }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+                                                    </svg>
+                                                </button>
+                                            )}
                                     </td>
                                 </tr>
                             ))}

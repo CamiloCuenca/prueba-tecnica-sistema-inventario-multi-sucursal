@@ -1,3 +1,19 @@
+// Eliminar producto (DELETE /api/products/{id})
+export const deleteProduct = async (id) => {
+  const response = await api.delete(`/api/products/${id}`);
+  return response.data;
+};
+
+// Editar producto (PUT /api/products/{id})
+export const updateProduct = async (id, body) => {
+  const response = await api.put(`/api/products/${id}`, body);
+  return response.data;
+};
+// Crear producto (POST /api/products)
+export const createProduct = async (body) => {
+  const response = await api.post('/api/products', body);
+  return response.data;
+};
 // Obtener producto por id (GET /api/products/{id})
 export const getById = async (id) => {
   const response = await api.get(`/api/products/${id}`);
