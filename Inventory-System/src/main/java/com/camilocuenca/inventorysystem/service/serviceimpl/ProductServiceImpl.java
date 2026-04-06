@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,6 +47,9 @@ public class ProductServiceImpl implements ProductService {
                     .collect(Collectors.toSet());
             p.setProviders(providers);
         }
+        // Ensure createdAt is set
+        if (p.getCreatedAt() == null) p.setCreatedAt(Instant.now());
+
         Product saved = productRepository.save(p);
         ProductDto out = new ProductDto();
         BeanUtils.copyProperties(saved, out);
@@ -161,6 +165,8 @@ public class ProductServiceImpl implements ProductService {
                 p.setName(name);
                 p.setSku(sku);
                 p.setUnit(unit);
+                // Ensure createdAt is set
+                p.setCreatedAt(Instant.now());
                 if (providerIds != null && !providerIds.isEmpty()) {
                     String[] parts = providerIds.split(";");
                     Set<Provider> providers = Arrays.stream(parts)

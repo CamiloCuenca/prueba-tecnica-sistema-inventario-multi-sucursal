@@ -39,4 +39,12 @@ public class Product {
             inverseJoinColumns = @JoinColumn(name = "provider_id"))
     private Set<Provider> providers;
 
+    // Ensure createdAt is set when the entity is persisted (portable JPA solution)
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = Instant.now();
+        }
+    }
+
 }
