@@ -1,6 +1,6 @@
 # **Ingeniería de Software**
 
-**Autor:** Juan Camilo Cuenca Sepúlveda
+> **Autor:** Juan Camilo Cuenca Sepúlveda
 
 # **Levantamiento de Requerimientos** 
 
