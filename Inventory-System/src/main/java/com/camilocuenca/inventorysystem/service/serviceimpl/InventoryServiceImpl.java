@@ -17,6 +17,7 @@ import com.camilocuenca.inventorysystem.repository.UserRepository;
 import com.camilocuenca.inventorysystem.repository.ProductRepository;
 import com.camilocuenca.inventorysystem.repository.ProviderRepository;
 import com.camilocuenca.inventorysystem.service.serviceInterface.InventoryService;
+import com.camilocuenca.inventorysystem.auditing.Auditable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 
 @Service
 public class InventoryServiceImpl implements InventoryService {
@@ -140,6 +142,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    @Auditable(accion = "updateAverageCost")
     @org.springframework.transaction.annotation.Transactional
     public void updateAverageCost(UUID productId, UUID branchId, java.math.BigDecimal purchaseQuantity, java.math.BigDecimal purchasePrice) {
         if (purchaseQuantity == null || purchasePrice == null) {
@@ -177,6 +180,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    @Auditable(accion = "updateSalePrice")
     @org.springframework.transaction.annotation.Transactional
     public void updateSalePrice(UUID productId, UUID branchId, java.math.BigDecimal salePrice) {
         if (salePrice == null) {
