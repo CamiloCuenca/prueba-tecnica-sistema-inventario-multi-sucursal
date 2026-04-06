@@ -10,6 +10,7 @@ import Modal from "../../components/Modal";
 import { getProviders } from "../providers/providersApi";
 import { createProduct } from "./productApi";
 import { deleteProduct, updateProduct } from "./productApi";
+import { useDeleteProductFromProvider } from "./useDeleteProductFromProvider";
 
 export default function TableProductList() {
   // Estados para proveedores y filtro
@@ -156,20 +157,63 @@ export default function TableProductList() {
   // Eliminar producto
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  const [deleteSuccess, setDeleteSuccess] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const handleDelete = (row) => {
+  const [selectedProvidersToDelete, setSelectedProvidersToDelete] = useState([]);
+  const { deleteFromProvider, loading: loadingDeleteProvider } = useDeleteProductFromProvider();
+
+  // Al hacer click en borrar, cargar detalle del producto si no está cargado
+  const handleDelete = async (row) => {
     setDeletingId(row.productId || row.id);
     setDeleteError(null);
+    setSelectedProvidersToDelete([]);
     setDeleteModalOpen(true);
+    if (!product || product.id !== (row.productId || row.id)) {
+      await fetchProduct(row.productId || row.id);
+    }
   };
+
+  // Manejar selección de proveedores
+  const handleProviderDeleteCheck = (id) => {
+    setSelectedProvidersToDelete((prev) =>
+      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
+    );
+  };
+
+  // Confirmar eliminación
   const confirmDelete = async () => {
-    try {
-      await deleteProduct(deletingId);
-      setDeleteModalOpen(false);
-      setDeletingId(null);
-      fetchProducts({ page, size, sort });
-    } catch (err) {
-      setDeleteError(err?.message || "Error al eliminar producto");
+    setDeleteError(null);
+    setDeleteSuccess(null);
+    if (!product) return;
+    const providerIds = product.providerIds || (product.providers ? product.providers.map(p => p.id) : []);
+    if (!Array.isArray(providerIds) || providerIds.length === 0 || selectedProvidersToDelete.length === 0 || selectedProvidersToDelete.length === providerIds.length) {
+      try {
+        await deleteProduct(deletingId);
+        setDeleteSuccess("Producto eliminado correctamente.");
+        setTimeout(() => {
+          setDeleteModalOpen(false);
+          setDeletingId(null);
+          setDeleteSuccess(null);
+          fetchProducts({ page, size, sort });
+        }, 1200);
+      } catch (err) {
+        setDeleteError(err?.message || "Error al eliminar producto");
+      }
+    } else {
+      try {
+        for (const providerId of selectedProvidersToDelete) {
+          await deleteFromProvider(deletingId, providerId);
+        }
+        setDeleteSuccess("Producto eliminado correctamente del/los proveedor(es).");
+        setTimeout(() => {
+          setDeleteModalOpen(false);
+          setDeletingId(null);
+          setDeleteSuccess(null);
+          fetchProducts({ page, size, sort });
+        }, 1200);
+      } catch (err) {
+        setDeleteError(err?.message || "Error al eliminar del proveedor");
+      }
     }
   };
 
@@ -384,22 +428,62 @@ export default function TableProductList() {
             </div>
           )}
         />
-                <Modal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
-                  <div className="space-y-4">
-                    <h2 className="text-lg font-bold">¿Eliminar producto?</h2>
-                    {deleteError && <div className="text-red-600 text-sm">{deleteError}</div>}
-                    <div className="flex justify-end gap-2">
-                      <button
-                        className="px-3 py-1 rounded border"
-                        onClick={() => setDeleteModalOpen(false)}
-                      >Cancelar</button>
-                      <button
-                        className="px-4 py-1 rounded bg-red-600 text-white"
-                        onClick={confirmDelete}
-                      >Eliminar</button>
-                    </div>
-                  </div>
-                </Modal>
+        <Modal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold">¿Eliminar producto?</h2>
+            {product && (Array.isArray(product.providerIds) && product.providerIds.length > 0 || (product.providers && product.providers.length > 0)) && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Selecciona proveedores para eliminar el producto:</label>
+                <div className="max-h-32 overflow-y-auto border rounded p-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedProvidersToDelete.length === (product.providerIds ? product.providerIds.length : product.providers.length)}
+                      onChange={() => {
+                        const allIds = product.providerIds || (product.providers ? product.providers.map(p => p.id) : []);
+                        if (selectedProvidersToDelete.length === allIds.length) {
+                          setSelectedProvidersToDelete([]);
+                        } else {
+                          setSelectedProvidersToDelete(allIds);
+                        }
+                      }}
+                    />
+                    <b>Todos los proveedores</b>
+                  </label>
+                  {(product.providers || (product.providerIds || [])).map((prov) => {
+                    const id = prov.id || prov;
+                    const name = prov.name || providers.find(p => p.id === id)?.name || id;
+                    return (
+                      <label key={id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedProvidersToDelete.includes(id)}
+                          onChange={() => handleProviderDeleteCheck(id)}
+                        />
+                        {name}
+                      </label>
+                    );
+                  })}
+                </div>
+                <span className="text-xs text-gray-500">Si seleccionas todos, se eliminará el producto globalmente.</span>
+              </div>
+            )}
+            {deleteError && <div className="text-red-600 text-sm">{deleteError}</div>}
+            {deleteSuccess && <div className="text-green-600 text-sm">{deleteSuccess}</div>}
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-3 py-1 rounded border"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={loadingDeleteProvider}
+              >Cancelar</button>
+              <button
+                className="px-4 py-1 rounded bg-red-600 text-white"
+                onClick={confirmDelete}
+                disabled={loadingDeleteProvider}
+              >Eliminar</button>
+            </div>
+          </div>
+        </Modal>
         <TablePaginator
           page={page}
           totalPages={pageInfo.totalPages || 1}

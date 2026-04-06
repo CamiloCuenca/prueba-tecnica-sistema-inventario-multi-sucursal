@@ -1,3 +1,13 @@
+// Eliminar producto de un proveedor específico (DELETE /api/products/{productId}/providers/{providerId})
+export const deleteProductFromProvider = async (productId, providerId) => {
+  const response = await api.delete(`/api/products/${productId}/providers/${providerId}`);
+  return response.data;
+};
+// Eliminar producto de una sucursal específica (DELETE /api/branches/{branchId}/inventory/{productId})
+export const deleteProductFromBranch = async (branchId, productId) => {
+  const response = await api.delete(`/api/branches/${branchId}/inventory/${productId}`);
+  return response.data;
+};
 // Eliminar producto (DELETE /api/products/{id})
 export const deleteProduct = async (id) => {
   const response = await api.delete(`/api/products/${id}`);
