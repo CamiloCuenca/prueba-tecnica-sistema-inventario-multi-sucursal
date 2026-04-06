@@ -18,6 +18,7 @@ import ProviderFormPage from "../pages/ProviderFormPage";
 import ProviderDetailPage from "../pages/ProviderDetailPage";
 import ProviderProductsPage from "../pages/ProviderProductsPage";
 import Toast from "../components/Toast";
+import ProductPage from "../pages/ProductPage";
 import { useAuth } from "../context/AuthContext";
 
 function ProtectedRoute({ children }) {
@@ -205,6 +206,16 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <MainLayout>
               <BranchesPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ProductPage />
             </MainLayout>
           </ProtectedRoute>
         }

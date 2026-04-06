@@ -5,7 +5,7 @@ import Inventory2Icon from "@mui/icons-material/Inventory2";
 import PeopleIcon from "@mui/icons-material/People";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { Link, useLocation } from "react-router-dom";
-import { LocalGroceryStore, PointOfSale, Business, Storefront } from "@mui/icons-material";
+import { LocalGroceryStore, PointOfSale, Business, Storefront, Category } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 
 const baseMenu = [
@@ -56,6 +56,12 @@ const baseMenu = [
     icon: <Business fontSize="medium" />,
     to: "/sucursales",
     roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    label: "Productos",
+    icon: <Category fontSize="medium" />,
+    to: "/products",
+    roles: ["ADMIN"],
   },
 ];
 
