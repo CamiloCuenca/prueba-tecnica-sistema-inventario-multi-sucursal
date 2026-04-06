@@ -80,8 +80,11 @@ export default function ProductTransferSelector({
                       min="0"
                       max={availableQty}
                       step="1"
-                      value={selectedQty}
-                      onChange={(e) => onUpdateQuantity(product.productId, e.target.value)}
+                      value={selectedQty === 0 ? '' : selectedQty}
+                      onChange={e => {
+                        const val = e.target.value;
+                        onUpdateQuantity(product.productId, val === '' ? 0 : Number(val));
+                      }}
                       className="w-20 border rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
                       placeholder="0"
                     />
