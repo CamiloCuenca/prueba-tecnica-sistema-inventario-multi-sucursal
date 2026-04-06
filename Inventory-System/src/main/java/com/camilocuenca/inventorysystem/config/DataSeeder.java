@@ -105,7 +105,10 @@ public class DataSeeder {
                 p.setCreatedAt(Instant.now());
                 // asignar provider round-robin
                 Provider prov = providers.get(i % providers.size());
-                p.setProvider(prov);
+                // asociar como conjunto (producto puede tener múltiples providers)
+                java.util.Set<Provider> provSet = new java.util.HashSet<>();
+                provSet.add(prov);
+                p.setProviders(provSet);
                 allProducts.add(p);
             }
             productRepository.saveAll(allProducts);

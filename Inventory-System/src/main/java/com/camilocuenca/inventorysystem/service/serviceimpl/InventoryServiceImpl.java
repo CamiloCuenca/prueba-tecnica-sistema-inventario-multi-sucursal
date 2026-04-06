@@ -9,6 +9,7 @@ import com.camilocuenca.inventorysystem.dto.metrics.InventoryLowStockDto;
 import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.Inventory;
 import com.camilocuenca.inventorysystem.model.Product;
+import com.camilocuenca.inventorysystem.model.Provider;
 import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.BranchRepository;
 import com.camilocuenca.inventorysystem.repository.InventoryRepository;
@@ -214,7 +215,11 @@ public class InventoryServiceImpl implements InventoryService {
                 dto.setMinStock(i.getMinStock() != null ? i.getMinStock().intValue() : 0);
                 dto.setDifference(dto.getMinStock() - dto.getCurrentStock());
                 dto.setCategory(null); // category not modeled
-                dto.setSupplier(p.getProvider() != null ? p.getProvider().getName() : null);
+                if (p.getProviders() != null && !p.getProviders().isEmpty()) {
+                    dto.setSupplier(p.getProviders().stream().map(Provider::getName).collect(Collectors.joining(", ")));
+                } else {
+                    dto.setSupplier(null);
+                }
                 // urgency calculation
                 if (dto.getCurrentStock() == 0) dto.setUrgencyLevel("CRÍTICO");
                 else if (dto.getCurrentStock() * 2 <= dto.getMinStock()) dto.setUrgencyLevel("ALTO");
