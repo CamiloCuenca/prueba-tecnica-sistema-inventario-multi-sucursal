@@ -112,3 +112,19 @@ export const dispatchTransfer = async (id, payload) => {
     throw error.response?.data || error.message;
   }
 };
+
+/**
+ * Recibe una transferencia (endpoint /api/transfers/{id}/receive)
+ * @param {Object} params
+ * @param {string} params.transferId - ID de la transferencia
+ * @param {Array} params.items - Array de productos con cantidades recibidas
+ * @returns {Promise<Object>} Respuesta del backend
+ */
+export const receiveTransfer = async ({ transferId, items }) => {
+  try {
+    const response = await api.post(`/api/transfers/${transferId}/receive`, { items });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};

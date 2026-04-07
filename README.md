@@ -35,6 +35,18 @@ El proyecto cumple con la regla técnica obligatoria de contenedorización compl
 ```bash
 docker compose up
 ```
+## Datos de Prueba
+| Usuario               | Email                                                                     | Contraseña |
+| --------------------- | ------------------------------------------------------------------------- | ---------- |
+| Administrador Central | [admin@empresa.local](mailto:admin@empresa.local)                         | 123456     |
+| Manager Armenia       | [manager.armenia@empresa.local](mailto:manager.armenia@empresa.local)     | 123456     |
+| Manager Pereira       | [manager.pereira@empresa.local](mailto:manager.pereira@empresa.local)     | 123456     |
+| Manager Manizales     | [manager.manizales@empresa.local](mailto:manager.manizales@empresa.local) | 123456     |
+| Manager Cali          | [manager.cali@empresa.local](mailto:manager.cali@empresa.local)           | 123456     |
+| Operador Armenia      | [op.armenia@empresa.local](mailto:op.armenia@empresa.local)               | 123456     |
+| Operador Pereira      | [op.pereira@empresa.local](mailto:op.pereira@empresa.local)               | 123456     |
+
+⚠️ Nota: en la base de datos realmente se guarda el hash de la contraseña (por passwordEncoder.encode(...)), no el texto plano. Esto solo es para referencia/testing.
 
 ### Puertos y Acceso
 

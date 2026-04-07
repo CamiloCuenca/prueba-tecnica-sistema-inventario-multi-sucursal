@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import BranchList from '../inventory/BranchList';
+import BranchSelector from './components/BranchSelector';
+import StatusFilter from './components/StatusFilter';
 import { decodeJWT } from '../../utils/jwt';
 import DispatchTransferModal from './components/DispatchTransferModal';
 import PrepareTransferModal from './components/PrepareTransferModal';
-import TransfersTable from './components/TransfersTable';
+import TransferTables from './components/TransferTables';
+import ReceiveTransferModal from './components/ReceiveTransferModal';
 import { dispatchTransfer, getTransferById, prepareTransfer } from './transferApi';
 import {
   carrierOptions,
@@ -17,6 +19,43 @@ import {
 } from './transferUiUtils';
 import { useTransferLists } from './useTransferLists';
 import { getRoleFromToken } from '../../utils/tokenUtils';
+
+
+export default function TransferActiveTables() {
+  // State for ReceiveTransferModal
+  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
+  const [receiveLoading, setReceiveLoading] = useState(false);
+  const [receiveError, setReceiveError] = useState(null);
+  const [receiveTransfer, setReceiveTransfer] = useState(null);
+
+  const handleOpenReceiveModal = async (row) => {
+    setReceiveModalOpen(true);
+    setReceiveLoading(true);
+    setReceiveError(null);
+    setReceiveTransfer(null);
+    try {
+      const transferDetail = await getTransferById(row.id);
+      setReceiveTransfer(transferDetail);
+    } catch (err) {
+      setReceiveError(getErrorMessage(err, 'Error al cargar detalle de la transferencia'));
+    } finally {
+      setReceiveLoading(false);
+    }
+  };
+
+  const handleCloseReceiveModal = () => {
+    setReceiveModalOpen(false);
+    setReceiveTransfer(null);
+    setReceiveError(null);
+    setReceiveLoading(false);
+  };
+
+  const handleConfirmReceive = () => {
+    // Aquí irá la lógica real de confirmación
+    // Por ahora solo cierra el modal
+    setReceiveModalOpen(false);
+  };
+
 
 const createInitialDispatchForm = () => ({
   carrier: carrierOptions[0],
@@ -38,13 +77,21 @@ const transferStatusOptions = [
   { value: 'CANCELLED', label: 'CANCELLED' },
 ];
 
-export default function TransferActiveTables() {
+
   const token = sessionStorage.getItem('token') || sessionStorage.getItem('authToken');
   const payload = decodeJWT(token);
   const role = getRoleFromToken() || payload?.role || null;
   const tokenBranchId = payload?.branchId || payload?.branch_id || payload?.branch || null;
   const isAdmin = role === 'ADMIN';
 
+  // State for PrepareTransferModal
+  const [prepareModalOpen, setPrepareModalOpen] = useState(false);
+  const [prepareLoading, setPrepareLoading] = useState(false);
+  const [prepareSubmitting, setPrepareSubmitting] = useState(false);
+  const [prepareError, setPrepareError] = useState(null);
+  const [prepareSuccess, setPrepareSuccess] = useState(null);
+  const [selectedOutgoingTransfer, setSelectedOutgoingTransfer] = useState(null);
+  const [confirmedItems, setConfirmedItems] = useState({});
   const [selectedBranchId, setSelectedBranchId] = useState(tokenBranchId);
   const [incomingStatusFilter, setIncomingStatusFilter] = useState('PENDING');
   const [outgoingStatusFilter, setOutgoingStatusFilter] = useState('RECEIVED');
@@ -67,14 +114,6 @@ export default function TransferActiveTables() {
     outgoingStatus: outgoingStatusFilter,
     enabled: !isAdmin || Boolean(selectedBranchId),
   });
-
-  const [prepareModalOpen, setPrepareModalOpen] = useState(false);
-  const [prepareLoading, setPrepareLoading] = useState(false);
-  const [prepareSubmitting, setPrepareSubmitting] = useState(false);
-  const [prepareError, setPrepareError] = useState(null);
-  const [prepareSuccess, setPrepareSuccess] = useState(null);
-  const [selectedOutgoingTransfer, setSelectedOutgoingTransfer] = useState(null);
-  const [confirmedItems, setConfirmedItems] = useState({});
 
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [dispatchSubmitting, setDispatchSubmitting] = useState(false);
@@ -252,6 +291,23 @@ export default function TransferActiveTables() {
     }
   };
 
+  // Acción para transferencias entrantes: mostrar botón 'Recibir' si estado es IN_TRANSIT
+  const renderIncomingAction = (row) => {
+    if (row.estado === 'IN_TRANSIT') {
+      return (
+        <button
+          type="button"
+          className="rounded px-3 py-1 bg-green-600 text-white text-xs font-medium"
+          onClick={() => handleOpenReceiveModal(row)}
+        >
+          Recibir
+        </button>
+      );
+    }
+    return null;
+  };
+
+  // Acción para transferencias salientes: mostrar botón 'Preparar envío' o 'Despachar' según el estado
   const renderOutgoingAction = (row) => {
     const statusCode = getStatusCode(row?._raw?.status);
 
@@ -287,73 +343,51 @@ export default function TransferActiveTables() {
   return (
     <>
       <div className="space-y-6">
-        {isAdmin && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">Selecciona sucursal</h2>
-            <BranchList
-              selectedBranchId={selectedBranchId}
-              onBranchSelect={setSelectedBranchId}
-            />
-            {!selectedBranchId && (
-              <p className="text-sm text-gray-600">Selecciona una sucursal para ver sus transferencias activas.</p>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <label className="text-sm font-medium text-gray-700" htmlFor="incoming-status-filter">
-            Estado (Entrantes)
-          </label>
-          <select
-            id="incoming-status-filter"
-            value={incomingStatusFilter}
-            onChange={(event) => setIncomingStatusFilter(event.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none sm:w-72"
-          >
-            {transferStatusOptions.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <TransfersTable
-          title="Transferencias Entrantes Activas"
-          rows={incomingRows}
-          loading={incomingLoading}
-          error={incomingError}
-          pageInfo={incomingPageInfo}
-          onPageChange={setIncomingPage}
+        <BranchSelector
+          isAdmin={isAdmin}
+          selectedBranchId={selectedBranchId}
+          setSelectedBranchId={setSelectedBranchId}
         />
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <label className="text-sm font-medium text-gray-700" htmlFor="outgoing-status-filter">
-            Estado (Salientes)
-          </label>
-          <select
-            id="outgoing-status-filter"
-            value={outgoingStatusFilter}
-            onChange={(event) => setOutgoingStatusFilter(event.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none sm:w-72"
-          >
-            {transferStatusOptions.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <StatusFilter
+          label="Estado (Entrantes)"
+          id="incoming-status-filter"
+          value={incomingStatusFilter}
+          onChange={(event) => setIncomingStatusFilter(event.target.value)}
+          options={transferStatusOptions}
+        />
 
-        <TransfersTable
-          title="Transferencias Salientes Activas"
-          rows={outgoingRows}
-          loading={outgoingLoading}
-          error={outgoingError}
-          pageInfo={outgoingPageInfo}
-          onPageChange={setOutgoingPage}
-          showAction
-          renderAction={renderOutgoingAction}
+
+        <StatusFilter
+          label="Estado (Salientes)"
+          id="outgoing-status-filter"
+          value={outgoingStatusFilter}
+          onChange={(event) => setOutgoingStatusFilter(event.target.value)}
+          options={transferStatusOptions}
+        />
+
+
+         <TransferTables
+          incomingRows={incomingRows}
+          outgoingRows={outgoingRows}
+          incomingLoading={incomingLoading}
+          outgoingLoading={outgoingLoading}
+          incomingError={incomingError}
+          outgoingError={outgoingError}
+          incomingPageInfo={incomingPageInfo}
+          outgoingPageInfo={outgoingPageInfo}
+          setIncomingPage={setIncomingPage}
+          setOutgoingPage={setOutgoingPage}
+          renderIncomingAction={renderIncomingAction}
+          renderOutgoingAction={renderOutgoingAction}
+        />
+        <ReceiveTransferModal
+          open={receiveModalOpen}
+          onClose={handleCloseReceiveModal}
+          transfer={receiveTransfer}
+          loading={receiveLoading}
+          error={receiveError}
+          onConfirm={handleConfirmReceive}
         />
       </div>
 

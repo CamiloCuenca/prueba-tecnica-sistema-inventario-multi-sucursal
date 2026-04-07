@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { getInventory, getBranches, getBranchInventory } from "./InventoryApi";
 
+
+
 export function useInventory() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
