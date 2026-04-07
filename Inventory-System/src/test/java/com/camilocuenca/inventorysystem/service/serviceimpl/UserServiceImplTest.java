@@ -1,4 +1,4 @@
-package com.camilocuenca.inventorysystem.service;
+package com.camilocuenca.inventorysystem.service.serviceimpl;
 
 import com.camilocuenca.inventorysystem.config.JWTUtils;
 import com.camilocuenca.inventorysystem.dto.user.LoginDTO;
@@ -9,7 +9,6 @@ import com.camilocuenca.inventorysystem.model.Branch;
 import com.camilocuenca.inventorysystem.model.User;
 import com.camilocuenca.inventorysystem.repository.BranchRepository;
 import com.camilocuenca.inventorysystem.repository.UserRepository;
-import com.camilocuenca.inventorysystem.service.serviceimpl.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,10 +1,9 @@
-package com.camilocuenca.inventorysystem.service;
+package com.camilocuenca.inventorysystem.service.serviceimpl;
 
 import com.camilocuenca.inventorysystem.dto.sale.SaleItemRequestDto;
 import com.camilocuenca.inventorysystem.dto.sale.SaleRequestDto;
 import com.camilocuenca.inventorysystem.model.*;
 import com.camilocuenca.inventorysystem.repository.*;
-import com.camilocuenca.inventorysystem.service.serviceimpl.SaleServiceImpl;
 import com.camilocuenca.inventorysystem.exceptions.InsufficientStockException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -136,7 +135,8 @@ class SaleServiceImplTest {
         Branch branch = new Branch(); branch.setId(branchId);
         when(branchRepository.findById(branchId)).thenReturn(Optional.of(branch));
         when(userRepository.findById(userId)).thenReturn(Optional.of(new User()));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(new Product()));
+        Product prodObj = new Product(); prodObj.setId(productId); // <-- set id to avoid null
+        when(productRepository.findById(productId)).thenReturn(Optional.of(prodObj));
 
         when(inventoryRepository.decrementQuantity(eq(branchId), eq(productId), any(java.math.BigDecimal.class))).thenReturn(0);
 
@@ -158,7 +158,7 @@ class SaleServiceImplTest {
         Branch branch = new Branch(); branch.setId(branchId);
         when(branchRepository.findById(branchId)).thenReturn(Optional.of(branch));
         when(userRepository.findById(userId)).thenReturn(Optional.of(new User()));
-        Product product = new Product(); product.setId(productId);
+        Product product = new Product(); product.setId(productId); // <-- set id to avoid null
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
 
         // inventoryRepository.findByBranchIdAndProductId returns empty -> should throw
