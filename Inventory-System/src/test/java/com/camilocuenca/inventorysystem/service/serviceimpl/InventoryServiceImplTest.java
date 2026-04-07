@@ -23,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -96,10 +95,16 @@ class InventoryServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         UUID targetBranch = branchId;
-        when(branchRepository.findById(targetBranch)).thenReturn(Optional.of(new Branch()));
+        Branch target = new Branch(); target.setId(targetBranch); target.setName("Target");
+        when(branchRepository.findById(targetBranch)).thenReturn(Optional.of(target));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> inventoryService.getBranchInventory(userId, targetBranch, PageRequest.of(0,10), null));
-        assertEquals(403, ex.getStatusCode().value());
+        // Antes esto lanzaba FORBIDDEN; ahora permitimos lectura. Simulamos inventario y esperamos un Page con contenido vacío.
+        Page<Inventory> page = new PageImpl<>(List.of(), PageRequest.of(0,10), 0);
+        when(inventoryRepository.findByBranchId(targetBranch, PageRequest.of(0,10))).thenReturn(page);
+
+        Page<InventoryViewDto> res = inventoryService.getBranchInventory(userId, targetBranch, PageRequest.of(0,10), null);
+        assertNotNull(res);
+        assertEquals(0, res.getTotalElements());
     }
 
     @Test
@@ -246,4 +251,3 @@ class InventoryServiceImplTest {
     }
 
 }
-
