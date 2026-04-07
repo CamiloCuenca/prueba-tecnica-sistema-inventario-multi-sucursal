@@ -12,10 +12,29 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d PruebaTecnica"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Servicio de Backup Automatizado
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:16
+    container_name: inventory_db_backup
+    restart: always
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: PruebaTecnica
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      SCHEDULE: "*/15 * * * *"  # Realiza el respaldo al inicio de cada hora 
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_SUFFIX: .sql
+    volumes:
+      - ./backups:/backups # Carpeta local donde se guardarán los dumps
+    depends_on:
+      db:
+        condition: service_healthy
 
   backend:
     build:

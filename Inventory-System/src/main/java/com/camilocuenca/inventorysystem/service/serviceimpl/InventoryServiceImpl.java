@@ -1,6 +1,5 @@
 package com.camilocuenca.inventorysystem.service.serviceimpl;
 
-import com.camilocuenca.inventorysystem.Enums.Role;
 import com.camilocuenca.inventorysystem.dto.branch.BranchDto;
 import com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto;
 import com.camilocuenca.inventorysystem.dto.inventory.ProductCatalogItemDto;
@@ -79,16 +78,15 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public Page<InventoryViewDto> getBranchInventory(UUID requesterUserId, UUID branchId, Pageable pageable, String q) {
-        User requester = userRepository.findById(requesterUserId)
+        // Validar que el usuario exista
+        userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sucursal no encontrada"));
 
-        // Permission check: operators only their own branch
-        if (requester.getRole() == Role.OPERATOR && (requester.getBranch() == null || !requester.getBranch().getId().equals(branchId))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acceso denegado a la sucursal solicitada");
-        }
+        // Nota: Permitimos que cualquier usuario autenticado vea el inventario (solo lectura).
+        // Las restricciones de mutación (compras, ventas, transferencias) siguen aplicando en sus endpoints/servicios.
 
         Page<Inventory> page;
         if (q != null && !q.isEmpty()) {
@@ -106,16 +104,14 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public Optional<InventoryViewDto> getProductInventoryInBranch(UUID requesterUserId, UUID branchId, UUID productId) {
-        User requester = userRepository.findById(requesterUserId)
+        // Validar que el usuario exista
+        userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sucursal no encontrada"));
 
-        if (requester.getRole() == Role.OPERATOR && (requester.getBranch() == null || !requester.getBranch().getId().equals(branchId))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acceso denegado a la sucursal solicitada");
-        }
-
+        // Lectura permitida para todos los usuarios autenticados (solo lectura)
         Optional<Inventory> inv = inventoryRepository.findByBranchIdAndProductId(branchId, productId);
         return inv.map(i -> toInventoryViewDto(i, branch));
     }
