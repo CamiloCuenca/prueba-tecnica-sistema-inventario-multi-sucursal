@@ -5,6 +5,8 @@ import Modal from '../../components/Modal';
 import ProductCard from '../product/productCard';
 import { useProduct } from '../product/useProduct';
 import { useInventory } from './useInventory';
+import { useAuth } from "../../context/AuthContext";
+import { useInventoryRealtime } from "./useInventoryRealtime";
 
 function normalizeInventoryResponse(response) {
   if (Array.isArray(response)) {
@@ -37,6 +39,14 @@ export default function TableInventory({ branchId }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState(null);
+
+    const { token } = useAuth();
+  
+  useInventoryRealtime({
+    branchId,
+    token,
+    refreshPage: () => fetchData(page)
+  });
 
   const fetchData = (pageToFetch) => {
     const fetch = branchId
@@ -77,13 +87,13 @@ export default function TableInventory({ branchId }) {
       const product = await handleProducts({ branchId, productId });
       console.log('Respuesta producto', product);
       if (!product) {
-        setProductError("No se encontró el producto o la respuesta está vacía.");
+        setProductError("No se encontraron detalles para este producto.");
         setSelectedProduct(null);
       } else {
         setSelectedProduct(product);
       }
     } catch (err) {
-      setProductError("Error al obtener los detalles del producto");
+      setProductError("No se pudieron cargar los detalles del producto. Intente de nuevo más tarde.");
       setSelectedProduct(null);
     } finally {
       setProductLoading(false);

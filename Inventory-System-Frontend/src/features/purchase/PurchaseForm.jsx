@@ -45,6 +45,7 @@ export default function PurchaseForm() {
   const branchId = getBranchIdFromToken();
 
   const paymentTermsOptions = [
+    { value: 'DIRECT', label: 'Pago directo' },
     { value: '7D', label: 'Crédito 7 días' },
     { value: '30D', label: 'Crédito 30 días' },
     { value: '60D', label: 'Crédito 60 días' },
@@ -138,7 +139,7 @@ export default function PurchaseForm() {
     if (field === 'productId') {
       const selectedProduct = availableProducts.find(p => p.id === value);
       if (selectedProduct) {
-        // El backend puede devolver 'price' o 'unitPrice'
+        // Puede devolver 'price' o 'unitPrice'
         newItems[index].unitPrice = selectedProduct.price || selectedProduct.unitPrice || 0;
       }
     }
@@ -448,7 +449,7 @@ export default function PurchaseForm() {
           )}
           {success && (
             <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-              ✓ Compra creada exitosamente. Se ha enviado al backend.
+              ✓ Compra creada exitosamente.
             </div>
           )}
 

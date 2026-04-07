@@ -1,11 +1,11 @@
 import React from "react";
 import Card from "./Card";
 
-export default function Modal({ open, onClose, children, contentClassName = "" }) {
+export default function Modal({ open, onClose, children, contentClassName = "", maxWidth = "max-w-lg" }) {
   if (!open) return null;
 
   const baseClassName = "bg-white rounded-lg shadow-lg p-6 relative w-full";
-  const defaultSizeClassName = "min-w-[320px] max-w-lg";
+  const defaultSizeClassName = `min-w-[320px] ${maxWidth}`;
   const modalContentClassName = contentClassName
     ? `${baseClassName} ${contentClassName}`
     : `${baseClassName} ${defaultSizeClassName}`;

@@ -176,7 +176,7 @@ export default function PurchaseTable() {
 
       setSelectedPurchase(updatedPurchase);
       initializeReceiveForm(updatedPurchase);
-      setReceiveSuccess('La recepción de la compra se registró correctamente.');
+      setReceiveSuccess('Recepción de compra registrada exitosamente.');
       await refetchPurchases();
     } catch (err) {
       setReceiveError(getErrorMessage(err, 'Error al registrar la recepción de la compra'));

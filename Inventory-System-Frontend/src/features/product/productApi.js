@@ -1,3 +1,13 @@
+// Eliminar producto de un proveedor específico (DELETE /api/products/{productId}/providers/{providerId})
+export const deleteProductFromProvider = async (productId, providerId) => {
+  const response = await api.delete(`/api/products/${productId}/providers/${providerId}`);
+  return response.data;
+};
+// Eliminar producto de una sucursal específica (DELETE /api/branches/{branchId}/inventory/{productId})
+export const deleteProductFromBranch = async (branchId, productId) => {
+  const response = await api.delete(`/api/branches/${branchId}/inventory/${productId}`);
+  return response.data;
+};
 // Eliminar producto (DELETE /api/products/{id})
 export const deleteProduct = async (id) => {
   const response = await api.delete(`/api/products/${id}`);
@@ -27,6 +37,29 @@ export const listGet = async (body = { page: 0, size: 20, sort: [] }) => {
 import { api } from '../../api/client';
 export const getProduct = async ({ branchId, productId }) => {
   const response = await api.get(`/api/branches/${branchId}/inventory/${productId}`);
+  return response.data;
+};
+
+// Importar productos desde CSV (POST /api/products/import)
+export const importProductsFromCsv = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/api/products/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+// Obtener plantilla CSV para importación (GET /api/products/import/template)
+export const getCsvTemplate = async () => {
+  const response = await api.get('/api/products/import/template', {
+    headers: {
+      'Accept': 'text/plain',
+    },
+    responseType: 'blob',
+  });
   return response.data;
 };
 
