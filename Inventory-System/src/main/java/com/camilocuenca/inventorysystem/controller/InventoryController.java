@@ -35,17 +35,19 @@ public class InventoryController {
     private final UserRepository userRepository;
     private final ProductPriceService productPriceService;
     private final com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService;
+    private final com.camilocuenca.inventorysystem.service.serviceimpl.InventoryWebSocketNotifier inventoryWebSocketNotifier;
 
     /**
      * Constructor para inyección de dependencias. Se inyecta InventoryService para manejar la lógica de inventario* @param inventoryService servicio de inventario
      * @param userRepository repositorio de usuarios
      */
     @Autowired
-    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService, com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService) {
+    public InventoryController(InventoryService inventoryService, UserRepository userRepository, ProductPriceService productPriceService, com.camilocuenca.inventorysystem.service.serviceimpl.LowStockNotifierService lowStockNotifierService, com.camilocuenca.inventorysystem.service.serviceimpl.InventoryWebSocketNotifier inventoryWebSocketNotifier) {
         this.inventoryService = inventoryService;
         this.userRepository = userRepository;
         this.productPriceService = productPriceService;
         this.lowStockNotifierService = lowStockNotifierService;
+        this.inventoryWebSocketNotifier = inventoryWebSocketNotifier;
     }
 
     /**
@@ -108,6 +110,8 @@ public class InventoryController {
                                                                      @RequestParam(defaultValue = "false") boolean showEmpty) {
         UUID requesterId = resolveRequesterId(authentication);
         Page<ProductCatalogItemDto> page = inventoryService.getOwnBranchCatalog(requesterId, pageable, q, showEmpty);
+        // Optional lightweight notification (global) that a catalog query was performed
+        try { inventoryWebSocketNotifier.notifyInventoryUpdate(null, null, null); } catch (Exception ignore) {}
         return ResponseEntity.ok(page);
     }
 
@@ -126,6 +130,17 @@ public class InventoryController {
                                                                       @RequestParam(required = false) String q) {
         UUID requesterId = resolveRequesterId(authentication);
         Page<InventoryViewDto> page = inventoryService.getBranchInventory(requesterId, branchId, pageable, q);
+        // notify a lightweight update for this branch (helps frontend to subscribe)
+        try {
+            // Try to include first item's stock as an example
+            if (page.hasContent()) {
+                InventoryViewDto first = page.getContent().get(0);
+                Integer currentStock = first.getQuantity() != null ? first.getQuantity().intValue() : null;
+                inventoryWebSocketNotifier.notifyInventoryUpdate(branchId, first.getProductId(), currentStock);
+            } else {
+                inventoryWebSocketNotifier.notifyInventoryUpdate(branchId, null, null);
+            }
+        } catch (Exception ignore) {}
         return ResponseEntity.ok(page);
     }
 
@@ -142,6 +157,10 @@ public class InventoryController {
                                                                @PathVariable UUID productId) {
         UUID requesterId = resolveRequesterId(authentication);
         Optional<InventoryViewDto> dto = inventoryService.getProductInventoryInBranch(requesterId, branchId, productId);
+        // Tell websocket about this read (lightweight)
+        try {
+            dto.ifPresent(iv -> inventoryWebSocketNotifier.notifyInventoryUpdate(branchId, productId, iv.getQuantity() != null ? iv.getQuantity().intValue() : null));
+        } catch (Exception ignore) {}
         return dto.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -210,6 +229,17 @@ public class InventoryController {
 
         // Call service
         inventoryService.updateSalePrice(productId, branchId, body.getSalePrice());
+        // Notify websocket subscribers about price update (stock might not change here; optionally could fetch current stock)
+        try {
+            // attempt to fetch current stock to include in message; use inventoryService if available
+            java.util.Optional<com.camilocuenca.inventorysystem.dto.inventory.InventoryViewDto> iv = inventoryService.getProductInventoryInBranch(null, branchId, productId);
+            if (iv.isPresent()) {
+                java.math.BigDecimal q = iv.get().getQuantity();
+                Integer currentStock = q != null ? q.intValue() : null;
+                inventoryWebSocketNotifier.notifyInventoryUpdate(branchId, productId, currentStock);
+            }
+        } catch (Exception ignore) {
+        }
         return ResponseEntity.noContent().build();
     }
 
@@ -245,57 +275,61 @@ public class InventoryController {
          return ResponseEntity.ok(page);
      }
 
-    /**
-     * Listar precios de referencia para un producto.
-     */
-    @GetMapping("/products/{productId}/prices")
-    public ResponseEntity<java.util.List<ProductPriceDto>> getPricesForProduct(@PathVariable UUID productId) {
-        java.util.List<ProductPriceDto> list = productPriceService.getPricesForProduct(productId);
-        return ResponseEntity.ok(list);
-    }
+     /**
+      * Listar precios de referencia para un producto.
+      */
+     @GetMapping("/products/{productId}/prices")
+     public ResponseEntity<java.util.List<ProductPriceDto>> getPricesForProduct(@PathVariable UUID productId) {
+         java.util.List<ProductPriceDto> list = productPriceService.getPricesForProduct(productId);
+         return ResponseEntity.ok(list);
+     }
 
-    /**
-     * Crear un precio de referencia para un producto. Requiere autenticación.
-     */
-    @PostMapping("/products/{productId}/prices")
-    public ResponseEntity<ProductPriceDto> createPrice(@PathVariable UUID productId, @Valid @RequestBody ProductPriceDto body) {
-        body.setProductId(productId);
-        ProductPriceDto created = productPriceService.createPrice(body);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
+     /**
+      * Crear un precio de referencia para un producto. Requiere autenticación.
+      */
+     @PostMapping("/products/{productId}/prices")
+     public ResponseEntity<ProductPriceDto> createPrice(@PathVariable UUID productId, @Valid @RequestBody ProductPriceDto body) {
+         body.setProductId(productId);
+         ProductPriceDto created = productPriceService.createPrice(body);
+         // notify that product price was changed/created
+         try { inventoryWebSocketNotifier.notifyInventoryUpdate(null, productId, null); } catch (Exception ignore) {}
+         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+     }
 
-    @PutMapping("/prices/{priceId}")
-    public ResponseEntity<ProductPriceDto> updatePrice(@PathVariable UUID priceId, @Valid @RequestBody ProductPriceDto body) {
-        ProductPriceDto updated = productPriceService.updatePrice(priceId, body);
-        return ResponseEntity.ok(updated);
-    }
+     @PutMapping("/prices/{priceId}")
+     public ResponseEntity<ProductPriceDto> updatePrice(@PathVariable UUID priceId, @Valid @RequestBody ProductPriceDto body) {
+         ProductPriceDto updated = productPriceService.updatePrice(priceId, body);
+         try { inventoryWebSocketNotifier.notifyInventoryUpdate(null, updated.getProductId(), null); } catch (Exception ignore) {}
+         return ResponseEntity.ok(updated);
+     }
 
-    @DeleteMapping("/prices/{priceId}")
-    public ResponseEntity<Void> deletePrice(@PathVariable UUID priceId) {
-        productPriceService.deletePrice(priceId);
-        return ResponseEntity.noContent().build();
-    }
+     @DeleteMapping("/prices/{priceId}")
+     public ResponseEntity<Void> deletePrice(@PathVariable UUID priceId) {
+         productPriceService.deletePrice(priceId);
+         try { inventoryWebSocketNotifier.notifyInventoryUpdate(null, null, null); } catch (Exception ignore) {}
+         return ResponseEntity.noContent().build();
+     }
 
-    /**
-     * Endpoint para obtener alertas de stock bajo para una sucursal.
-     * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
-     */
-    @GetMapping("/inventory/low-stock-alerts")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    public ResponseEntity<List<InventoryLowStockDto>> getLowStockAlerts(@RequestParam UUID branchId) {
-        java.util.List<InventoryLowStockDto> list = inventoryService.getLowStockAlerts(branchId);
-        return ResponseEntity.ok(list);
-    }
+     /**
+      * Endpoint para obtener alertas de stock bajo para una sucursal.
+      * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
+      */
+     @GetMapping("/inventory/low-stock-alerts")
+     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+     public ResponseEntity<List<InventoryLowStockDto>> getLowStockAlerts(@RequestParam UUID branchId) {
+         java.util.List<InventoryLowStockDto> list = inventoryService.getLowStockAlerts(branchId);
+         return ResponseEntity.ok(list);
+     }
 
-    /**
-     * Endpoint para disparar notificaciones manualmente sobre alertas de stock bajo.
-     * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
-     */
-    @PostMapping("/inventory/low-stock-alerts/notify")
-    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    public ResponseEntity<?> triggerLowStockNotifications(Authentication authentication, @RequestParam UUID branchId) {
-        UUID userId = resolveRequesterId(authentication);
-        lowStockNotifierService.notifyLowStock(branchId, userId);
-        return ResponseEntity.accepted().body("Notifications triggered");
-    }
+     /**
+      * Endpoint para disparar notificaciones manualmente sobre alertas de stock bajo.
+      * Requiere que el usuario tenga ROLE_MANAGER o ROLE_ADMIN.
+      */
+     @PostMapping("/inventory/low-stock-alerts/notify")
+     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+     public ResponseEntity<?> triggerLowStockNotifications(Authentication authentication, @RequestParam UUID branchId) {
+         UUID userId = resolveRequesterId(authentication);
+         lowStockNotifierService.notifyLowStock(branchId, userId);
+         return ResponseEntity.accepted().body("Notifications triggered");
+     }
 }

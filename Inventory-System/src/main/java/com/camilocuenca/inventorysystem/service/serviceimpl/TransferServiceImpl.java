@@ -666,9 +666,12 @@ public class TransferServiceImpl implements TransferService {
         boolean isManager = requester.getRole() != null && Role.MANAGER.equals(requester.getRole());
         boolean isOriginManager = isManager && requester.getBranch() != null && transfer.getOriginBranch() != null
                 && requester.getBranch().getId().equals(transfer.getOriginBranch().getId());
+        boolean isDestinationManager = isManager && requester.getBranch() != null && transfer.getDestinationBranch() != null
+                && requester.getBranch().getId().equals(transfer.getDestinationBranch().getId());
 
-        if (!isOriginManager) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el manager de la sucursal origen puede ver el detalle de esta transferencia");
+        // Permitir también al manager de la sucursal destino
+        if (!(isOriginManager || isDestinationManager)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el manager de la sucursal origen o destino puede ver el detalle de esta transferencia");
         }
 
         List<TransferDetail> details = transferDetailRepository.findByTransferId(transferId);
